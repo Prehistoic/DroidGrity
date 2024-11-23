@@ -136,8 +136,14 @@ ENV/
 # Test resources
 !**/test_resources/**/*
 
-# Filled CPP templates
+# Filled templates
 **/*.cpp
+**/*.smali
 
 # Build results
 build/*
+temp/*
+injected/*
+
+# IDE
+.vscode/

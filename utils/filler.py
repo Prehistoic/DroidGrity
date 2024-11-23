@@ -34,8 +34,7 @@ class TemplateFiller:
             with open(output, 'w') as f:
                 f.write(updated_content)
             
-            self.logger.info(f"Template filled with success => {output}")
             return output
         except Exception:
-            self.logger.error(f"Failed to fill the template:\n{traceback.format_exc()}")
+            self.logger.error(f"Error when filling template:\n{traceback.format_exc()}")
             return None

@@ -43,3 +43,11 @@ class APKUtils:
         except Exception:
             self.logger.error(f"Failed to retrieve minSdkVersion:\n{traceback.format_exc()}")
             return None
+        
+    def get_main_activity(self):
+        try:
+            apk = APK(self.path)
+            return apk.get_main_activity()
+        except Exception:
+            self.logger.error(f"Failed to retrieve main activity:\n{traceback.format_exc()}")
+            return None

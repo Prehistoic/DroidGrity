@@ -27,13 +27,18 @@ class CMakeBuilder:
             # Making sure we have all the inputs we need to run cmake
             if not self.android_ndk_path:
                 self.logger.error("Missing Android NDK path, skipping build...")
-                return None
+                return []
             
             if not self.target_android_sdk:
                 self.logger.error("Missing target SDK to build, skipping build...")
-                return None
+                return []
             
             android_toolchain = f"{self.android_ndk_path}/build/cmake/android.toolchain.cmake"
+
+            # Making sure cmake is in the PATH
+            if not shutil.which("cmake"):
+                self.logger.error("cmake is not in the PATH, skipping build...")
+                return []
 
             # We clean and create the build directory architecture
             if os.path.exists(BUILD_DIR):
@@ -63,5 +68,5 @@ class CMakeBuilder:
 
             return built_dylibs
         except Exception:
-            self.logger.error(f"Failure in build:\n{traceback.format_exc()}")
+            self.logger.error(f"Error in build:\n{traceback.format_exc()}")
             return []

@@ -5,8 +5,8 @@
 #ifndef MYLIBC_H
 #define MYLIBC_H
 
-int my_open(const char* path, int flags) {
-    return (int) syscall(AT_FDCWD, SYS_openat, path, flags);
+int my_openat(const char* path, int flags) {
+    return (int) syscall(SYS_openat, AT_FDCWD, path, flags);
 }
 
 ssize_t my_read(int fd, void* buf, size_t count) {

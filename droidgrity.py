@@ -1,12 +1,14 @@
 import argparse
 import logging
 import sys
-import os
 
-from constants import ANDROID_ABIS, LOG_LEVELS_MAPPING, DYLIB_SRC_PATH, DYLIB_CPP_TEMPLATE
+from constants import ANDROID_ABIS, LOG_LEVELS_MAPPING, DYLIB_SRC_PATH, DYLIB_CPP_TEMPLATE, DYLIB_SMALI_TEMPLATE, BUILD_DIR
 from utils.apk import APKUtils
 from utils.filler import TemplateFiller
 from utils.builder import CMakeBuilder
+from utils.injector import DylibInjector
+from utils.signer import ApkSigner
+from utils.installer import ApkInstaller
 
 def droidgrity(args):
      # Setting up logging
@@ -40,30 +42,76 @@ def droidgrity(args):
         sys.exit(-1)
     else:
         logger.info(f"APK - minSdkVersion = {min_sdk}")
+
+    main_activity = apk.get_main_activity().replace(".", "/")
+    if not main_activity:
+        logger.error("Failed to retrieve main activity. Exiting...")
+        sys.exit(-1)
+    else:
+        logger.info(f"APK - Main Activity = {main_activity}")
     
-    # Then we fill droidgrity.cpp.template with the retrieved informations
-    filler = TemplateFiller(DYLIB_CPP_TEMPLATE)
+    # Then we fill the different templates with the retrieved informations
+    cpp_template_filler = TemplateFiller(DYLIB_CPP_TEMPLATE)
     data = {
         "appPackageName": package_name.replace(".", "_"),
         "knownCertHash": ", ".join(f"0x{part.lower()}" for part in certificate_hash.split())
     }
-    filled_template = filler.fill(data)
+    filled_cpp_template = cpp_template_filler.fill(data)
 
-    if not filled_template:
+    if not filled_cpp_template:
+        logger.error(f"Failed to fill template {DYLIB_CPP_TEMPLATE}. Exiting...")
         sys.exit(-1)
+    else:
+        logger.info(f"Template filled with success => {filled_cpp_template}")
+
+    smali_template_filler = TemplateFiller(DYLIB_SMALI_TEMPLATE)
+    data = {
+        "appPackageName": package_name.replace(".", "/"),
+    }
+    filled_smali_template = smali_template_filler.fill(data)
+
+    if not filled_smali_template:
+        logger.error(f"Failed to fill template {DYLIB_SMALI_TEMPLATE}. Exiting...")
+        sys.exit(-1)
+    else:
+        logger.info(f"Template filled with success => {filled_smali_template}")
 
     # Then we build libdroidgrity.so each one of the provided ABIs
     builder = CMakeBuilder(min_sdk, args.target_abi, args.android_ndk)
     built_dylibs = builder.build(DYLIB_SRC_PATH)
-    
-    os.remove(filled_template) # We delete the filled template since we do not need it anymore
 
-    if not built_dylibs:
+    if len(built_dylibs) != len(args.target_abi):
+        logger.error("Failed to build dylibs. Exiting...")
         sys.exit(-1)
+    else:
+        logger.info(f"Built dylibs => {', '.join(built_dylibs)}")
 
     # Then we inject each libdroidgrity.so into the provided APK and we rebuild a new one
+    injector = DylibInjector(args.apk)
+    injected_apk = injector.inject(main_activity, filled_smali_template)
 
-    # Finally we resign the newly built APK
+    if not injected_apk:
+        logger.error("Failed to inject dylib into APK. Exiting...")
+        sys.exit(-1)
+    else:
+        logger.info(f"Injected dylib successfully. New APK => {injected_apk}")
+
+    # Then we resign the newly built APK
+    signer = ApkSigner(injected_apk, args.keystore)
+    signed_apk = signer.sign(args.keystore_pass, args.key_alias, args.key_pass)
+
+    if not signed_apk:
+        logger.error("Failed to resign APK. Exiting...")
+        sys.exit(-1)
+    else:
+        logger.info(f"Resigned APK successfully. Final APK => {signed_apk}")
+
+    # Finally we install the new APK if the option was enabled
+    if args.install:
+        installer = ApkInstaller()
+        installer.install(signed_apk)
+
+    logger.info("DONE :)")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -85,6 +133,9 @@ if __name__ == "__main__":
     dylib_args = parser.add_argument_group("Dylib")
     dylib_args.add_argument("-n", "--android-ndk", dest="android_ndk", help="Path to Android NDK", required=False) # If not specified we'll use env variable ANDROID_NDK_ROOT
     dylib_args.add_argument("-ta", "--target-abi", dest="target_abi", nargs='+', choices=ANDROID_ABIS, metavar="ABIs", help="Android ABI(s) to target", default=ANDROID_ABIS, required=False)
+
+    other_args = parser.add_argument_group("Others")
+    other_args.add_argument("-i", "--install", dest="install", action="store_true", help="Run ADB install", required=False)
 
     args = parser.parse_args()
 

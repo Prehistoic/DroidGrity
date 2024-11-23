@@ -16,7 +16,7 @@
 
 #define BUFFER_SIZE 8192
 
-const char* MODULE = "TAMPERCHECK";
+const char* MODULE = "DROIDGRITY";
 
 // Helper to read a little-endian 32-bit value from the buffer
 uint32_t readLE32(const unsigned char* buffer) {
@@ -283,7 +283,7 @@ char* convertToHex(const unsigned char* hash, size_t length) {
 }
 
 int verifyCertificateFromAPK(const char* apkPath, unsigned char* knownCertHash, size_t hashLen) {
-    int fd = my_open(apkPath, 0);
+    int fd = my_openat(apkPath, 0);
     if (fd < 0) {
         __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Failed to open APK %s", apkPath);
         return -1;
@@ -339,7 +339,7 @@ int verifyCertificateFromAPK(const char* apkPath, unsigned char* knownCertHash, 
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_@droidgrity.filler.appPackageName@_TamperCheck_isApkTampered(JNIEnv *env,
+Java_@droidgrity.filler.appPackageName@_DroidGrity_isApkTampered(JNIEnv *env,
                                                                 jobject instance,
                                                                 jstring apkPath) {
     // Convert the Java string to a C++ string
@@ -351,8 +351,14 @@ Java_@droidgrity.filler.appPackageName@_TamperCheck_isApkTampered(JNIEnv *env,
 
     // Verify the certificate used to sign the APK
     if (verifyCertificateFromAPK(nativePath, knownCertHash, SHA256_DIGEST_LENGTH) < 0) {
+        // APK was tampered with so we'll crash by referencing a null pointer !
+        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "APK was tampered with, crashing !");
+        int *ptr = NULL;
+        *ptr = 42;
+
         return JNI_TRUE;
     } else {
+        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "APK was not tampered with, continuing !");
         return JNI_FALSE;
     }
 }
