@@ -4,7 +4,7 @@ import shutil
 import sys
 import os
 
-from constants import ANDROID_ABIS, LOG_LEVELS_MAPPING, DYLIB_SRC_PATH, DYLIB_CPP_TEMPLATE, DYLIB_SMALI_TEMPLATE, BUILD_DIR
+from constants import ANDROID_ABIS, LOG_LEVELS_MAPPING, DYLIB_SRC_PATH, DYLIB_CPP_TEMPLATE, DYLIB_SMALI_TEMPLATE, BUILD_DIR, INJECTED_APK_DIR, TEMP_DIR
 from utils.apk import APKUtils
 from utils.filler import TemplateFiller
 from utils.builder import CMakeBuilder
@@ -123,6 +123,20 @@ def droidgrity(args):
         installer = ApkInstaller()
         installer.install(output_apk_fullpath)
 
+    # We also clean the temporary repositories if everything went good
+    if not args.do_not_clean:
+        directories_to_clean = [BUILD_DIR, TEMP_DIR, INJECTED_APK_DIR]
+        logger.info(f"Cleaning following repositories : {' - '.join(directories_to_clean)}")
+        for directory in directories_to_clean:
+            if os.path.exists(directory) and os.path.isdir(directory):
+                try:
+                    shutil.rmtree(directory)
+                except:
+                    logger.error(f"Failed to clean {directory}")
+        logger.info("Cleaning successfull !")
+    else:
+        logger.info("Cleaning skipped")
+
     logger.info("DONE :)")
 
 if __name__ == "__main__":
@@ -149,6 +163,7 @@ if __name__ == "__main__":
 
     other_args = parser.add_argument_group("Others")
     other_args.add_argument("-i", "--install", dest="install", action="store_true", help="Run ADB install", required=False)
+    other_args.add_argument("-nc", "--do-not-clean", dest="do_not_clean", action="store_true", help="Do not clean temporary directories (for debugging purposes...)", required=False)
 
     args = parser.parse_args()
 
