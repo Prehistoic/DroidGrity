@@ -14,6 +14,8 @@ class DylibInjector:
         self.apk = apk_path
 
     def inject(self, target_activity: str, smali_file: str):
+        self.logger.info(f"Attempting to inject DroidGrity.smali and loading dylibs in {target_activity}")
+
         # First we verify that apktool is in the PATH
         if not shutil.which("apktool"):
             self.logger.error("apktool is not in the PATH, skipping inject...")
@@ -82,16 +84,13 @@ class DylibInjector:
             idx = 0
             while idx < len(smali_code):
                 line = smali_code[idx]
-                new_smali_code.append(line)
 
                 if ".method protected onCreate(Landroid/os/Bundle;)V" in line:  # Hook into onCreate method
                     in_on_create = True
                 elif in_on_create and ".locals" in line:
-                    # We're updating the number of required registers if it is lower than the one we need in the code we will inject below (4)
-                    register_count = int(line.replace(".locals").strip())
-                    line_to_add = f"    .locals 4" if register_count < 4 else line
-                    new_smali_code.append(line_to_add)
-                    idx += 1
+                    # We're updating the number of required registers if it is lower than the one we need in the code we will inject below
+                    register_count = int(line.replace(".locals", "").strip())
+                    line = f"    .locals 3" if register_count < 3 else line
                 elif in_on_create and "return-void" in line:
                     # Basically we just add some code that will invoke the isApkTampered method from the DroidGrity.smali file we injected, before the end on the onCreate method
                     new_smali_code.append(f"    sget-object v0, L{target_activity_package_name}/DroidGrity;->INSTANCE:L{target_activity_package_name}/DroidGrity;" + "\n\n")
@@ -100,15 +99,13 @@ class DylibInjector:
                     new_smali_code.append(f"    invoke-virtual {{v2}}, Landroid/content/Context;->getApplicationInfo()Landroid/content/pm/ApplicationInfo;" + "\n\n")
                     new_smali_code.append(f"    move-result-object v2" + "\n\n")
                     new_smali_code.append(f"    iget-object v2, v2, Landroid/content/pm/ApplicationInfo;->sourceDir:Ljava/lang/String;" + "\n\n")
-                    new_smali_code.append(f"    const-string/jumbo v3, \"sourceDir\"" + "\n\n")
-                    new_smali_code.append(f"    invoke-static {{v2, v3}}, Lkotlin/jvm/internal/Intrinsics;->checkNotNullExpressionValue(Ljava/lang/Object;Ljava/lang/String;)V" + "\n\n")
                     new_smali_code.append(f"    invoke-virtual {{v0, v2}}, L{target_activity_package_name}/DroidGrity;->isApkTampered(Ljava/lang/String;)Z" + "\n\n")
                     new_smali_code.append(f"    move-result v0" + "\n\n")
-                    new_smali_code.append(line)
                     in_on_create = False
-                    idx += 1
-                else:
-                    idx += 1
+                
+                # We add the original (or updated line) and go to the next line
+                new_smali_code.append(line)
+                idx += 1
 
             with open(target_activity_smali, "w") as f:
                 f.writelines(new_smali_code)
