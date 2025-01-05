@@ -69,7 +69,7 @@ char * getApkPath(char * packageName) {
 
     // Open the maps file using openat
     int fd = my_openat(dir_fd, "maps", O_RDONLY);
-    close(dir_fd); // Close directory file descriptor
+    my_close(dir_fd); // Close directory file descriptor
     if (fd == -1) {
         return NULL;
     }
