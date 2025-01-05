@@ -65,7 +65,7 @@ class CMakeBuilder:
                     self.logger.info(f"Built {built_dylib} successfully !")
                     built_dylibs.append(built_dylib)
                 except subprocess.CalledProcessError:
-                    self.logger.error(f"Failed to build for ABI {abi}")
+                    self.logger.error(f"Failed to build for ABI {abi}\n{traceback.format_exc()}")
 
             return built_dylibs
         except Exception:

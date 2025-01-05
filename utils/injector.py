@@ -40,18 +40,6 @@ class DylibInjector:
                 lib_path_in_apk = os.path.join(TEMP_DIR, "lib", abi)
                 os.makedirs(lib_path_in_apk, exist_ok=True)
 
-                # First we inject the prerequisite dylib
-                prerequisite_dylibs_abi_dir = os.path.join(PREREQUISITE_DYLIBS_PATH, abi)
-                for lib_file in os.listdir(prerequisite_dylibs_abi_dir):
-                    if lib_file in PREREQUISITE_DYLIBS:
-                        src_file = os.path.join(prerequisite_dylibs_abi_dir, lib_file)
-                        dst_file = os.path.join(lib_path_in_apk, lib_file)
-                        shutil.copy(src_file, dst_file)
-                        self.logger.info(f"Injected {src_file} into {dst_file}")
-
-                        inserted_dylibs_paths.append(os.path.join("lib", abi, lib_file))
-
-                # Then we inject the libdroidgrity.so dylib we built
                 built_dylib_abi_dir = os.path.join(BUILD_DIR, abi)
                 for lib_file in os.listdir(built_dylib_abi_dir):
                     if lib_file.endswith(".so"):

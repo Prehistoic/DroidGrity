@@ -1,10 +1,10 @@
 #include <jni.h>
 #include <android/log.h>
-#include "openssl/sha.h"
 #include <vector>
 #include <cinttypes>
 
 #include "mylibc.h"
+#include "sha256.h"
 
 #define APK_SIG_BLOCK_MAGIC "APK Sig Block 42"
 #define APK_SIG_V2_SCHEME_BLOCK_ID 0x7109871a
@@ -318,9 +318,9 @@ int verifyCertificateFromAPK(const char* apkPath, unsigned char* knownCertHash, 
     // We're finished with reading the file we can close the file handler
     my_close(fd);
 
-    // Hash the certificate file
-    unsigned char certHash[SHA256_DIGEST_LENGTH];
-    SHA256(certData, certSize, certHash);
+    // Hash the certificate file with our custom sha256 implementation
+    unsigned char certHash[SHA256_BYTES_SIZE];
+    sha256_bytes(certData, certSize, certHash);
 
     // Following lines are a helper I used to get my certificate sequence hash
     char* hexString = convertToHex(certHash, sizeof(certHash));
@@ -347,10 +347,10 @@ Java_@droidgrity.filler.appPackageName@_DroidGrity_isApkTampered(JNIEnv *env,
     __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "APK Path = %s", nativePath);
 
     // Known hash of the original signing certificate
-    unsigned char knownCertHash[SHA256_DIGEST_LENGTH] = { @droidgrity.filler.knownCertHash@ };
+    unsigned char knownCertHash[SHA256_BYTES_SIZE] = { @droidgrity.filler.knownCertHash@ };
 
     // Verify the certificate used to sign the APK
-    if (verifyCertificateFromAPK(nativePath, knownCertHash, SHA256_DIGEST_LENGTH) < 0) {
+    if (verifyCertificateFromAPK(nativePath, knownCertHash, SHA256_BYTES_SIZE) < 0) {
         // APK was tampered with so we'll crash by referencing a null pointer !
         __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "APK was tampered with, crashing !");
         int *ptr = NULL;
