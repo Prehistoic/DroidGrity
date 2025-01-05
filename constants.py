@@ -14,8 +14,6 @@ ANDROID_ABIS = ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"]
 DYLIB_SRC_PATH = "cpp"
 DYLIB_CPP_TEMPLATE = os.path.join(DYLIB_SRC_PATH, "droidgrity.cpp.template")
 DYLIB_NAME = "droidgrity"
-PREREQUISITE_DYLIBS_PATH = os.path.join(DYLIB_SRC_PATH, "openssl", "libs")
-PREREQUISITE_DYLIBS = ["libcrypto.so"]
 
 # Smali
 SMALI_SRC_PATH = "smali"

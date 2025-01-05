@@ -4,7 +4,7 @@ import shutil
 import subprocess
 import os
 
-from constants import INJECTED_APK_DIR, BUILD_DIR, TEMP_DIR, PREREQUISITE_DYLIBS_PATH, PREREQUISITE_DYLIBS
+from constants import INJECTED_APK_DIR, BUILD_DIR, TEMP_DIR
 
 class DylibInjector:
 
