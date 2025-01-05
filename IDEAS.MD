@@ -1,7 +1,5 @@
 Use https://github.com/DimaKoz/stunning-signature/blob/master/app/src/main/c/path_helper.c to remove the fact that you need to get a path from Kotlin code to verify certs
 
-Add it so user can define in a parameter the output + create an output with a nice looking name at the same path than the target apk by default
-
 Make it so the user can define a handler in its code rather than crashing the application
 Maybe you could also just start the dylib code with JNI_OnLoad
 

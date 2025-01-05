@@ -1,6 +1,8 @@
 import argparse
 import logging
+import shutil
 import sys
+import os
 
 from constants import ANDROID_ABIS, LOG_LEVELS_MAPPING, DYLIB_SRC_PATH, DYLIB_CPP_TEMPLATE, DYLIB_SMALI_TEMPLATE, BUILD_DIR
 from utils.apk import APKUtils
@@ -106,10 +108,19 @@ def droidgrity(args):
     else:
         logger.info(f"Resigned APK successfully. Final APK => {signed_apk}")
 
+    # Then we copy the newly build APK to its final output path
+    try:
+        output_apk_fullpath = args.output if args.output else os.path.join(os.path.dirname(args.apk), os.path.basename(args.apk).replace(".apk", "_protected.apk"))
+        shutil.copy(signed_apk, output_apk_fullpath)
+        logger.info(f"Copied signed APK {signed_apk} to {output_apk_fullpath}")
+    except:
+        logger.error(f"Failed to copy signed APK {signed_apk} to {output_apk_fullpath}. Exiting...")
+        sys.exit(-1)
+
     # Finally we install the new APK if the option was enabled
     if args.install:
         installer = ApkInstaller()
-        installer.install(signed_apk)
+        installer.install(output_apk_fullpath)
 
     logger.info("DONE :)")
 
@@ -123,6 +134,7 @@ if __name__ == "__main__":
     
     apk_args = parser.add_argument_group("APK")
     apk_args.add_argument("-a", "--apk", dest="apk", help="APK to protect", required=True)
+    apk_args.add_argument("-o", "--output", dest="output", help="Protected APK", required=False)
 
     keystore_args = parser.add_argument_group("Keystore")
     keystore_args.add_argument("-ks", "--keystore", dest="keystore", help="Keystore to use for signing", required=True)
