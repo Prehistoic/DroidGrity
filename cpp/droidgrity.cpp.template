@@ -1,6 +1,6 @@
 #include <jni.h>
 #include <android/log.h>
-#include <vector>
+#include <stdlib.h>
 #include <cinttypes>
 
 #include "mylibc.h"
