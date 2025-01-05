@@ -29,7 +29,7 @@ static const char * getFilenameExt(const char *filename) {
     return dot + 1;
 }
 
-static char * getPathFromEntry(const char * line, char * packageName) {
+static char * getPathFromEntry(const char * line, const char * packageName) {
     char path[PATH_SIZE];
 
     char * copied_line = my_strdup(line);
@@ -60,7 +60,7 @@ static char * getPathFromEntry(const char * line, char * packageName) {
     return NULL;
 }
 
-char * getApkPath(char * packageName) {
+char * getApkPath(const char * packageName) {
     // Open the /proc/self directory
     int dir_fd = my_open("/proc/self", O_RDONLY | O_DIRECTORY);
     if (dir_fd == -1) {
@@ -74,13 +74,13 @@ char * getApkPath(char * packageName) {
         return NULL;
     }
 
-    char buffer[BUFFER_SIZE];
+    char buffer[FD_BUFFER_SIZE];
     int bytes_read;
     std::string current_line = "";
     char * path;
 
     // Read from the file descriptor directly
-    while ((bytes_read = my_read(fd, buffer, BUFFER_SIZE - 1)) > 0) {
+    while ((bytes_read = my_read(fd, buffer, FD_BUFFER_SIZE - 1)) > 0) {
         buffer[bytes_read] = '\0'; // Null-terminate the buffer
 
         // Process the content of the buffer line by line

@@ -26,9 +26,6 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN 
 #ifndef PATH_HELPER_H
 #define PATH_HELPER_H
 
-#include <stdlib.h>
-#include <fcntl.h> // for O_RDONLY and O_DIRECTORY
-
 /*
 A shame that we have to include this but we need it for std::string. We don't use it to import methods though since we redefined them in mylibc to avoid hooking !
 Could maybe do this another way but I lost my sanity trying to do things with char * rather than std::string
@@ -37,9 +34,9 @@ Could maybe do this another way but I lost my sanity trying to do things with ch
 
 #include "mylibc.h"
 
-#define BUFFER_SIZE 1024
+#define FD_BUFFER_SIZE 1024
 #define PATH_SIZE 256
 
-char * getApkPath(char * packageName);
+char * getApkPath(const char * packageName);
 
 #endif //PATH_HELPER_H

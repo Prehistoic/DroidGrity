@@ -1,8 +1,5 @@
 #include <jni.h>
 #include <android/log.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <cinttypes>
 
 #include "mylibc.h"
 #include "sha256.h"
@@ -236,7 +233,7 @@ void parseAPKSigningBlock(int fd, off_t blockOffset, size_t* certSize, unsigned 
         uint32_t id = readLE32(ptr);         // Read the ID
         uint64_t size = readLE64(ptr + 4);  // Read the size
 
-        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Found block: ID=0x%x Size=%" PRId64 " bytes", id, size);
+        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Found block: ID=0x%x Size=%lld bytes", id, (long long)size);
 
         ptr += 8;
 
@@ -343,12 +340,15 @@ extern "C"
 JNIEXPORT jboolean JNICALL
 Java_@droidgrity.filler.appPackageName_withUnderscores@_DroidGrity_isApkTampered(JNIEnv *env,
                                                                 jobject instance,
-                                                                jstring toto) {
+                                                                jstring apkPathFromJava) {
     const char *apkPath = getApkPath("@droidgrity.filler.appPackageName_withDots@");
 
     if (apkPath == NULL) {
-        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Could not find APK, aborting ! Application is not protected !");
-        return JNI_FALSE;
+        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Could not find APK something may be fishy, crashing !");
+        int *ptr = NULL;
+        *ptr = 42;
+
+        return JNI_TRUE;
     }
 
     __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "APK Path = %s", apkPath);
