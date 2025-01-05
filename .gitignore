@@ -135,6 +135,8 @@ ENV/
 
 # Filled templates
 **/*.cpp
+!cpp/mylibc.cpp
+!cpp/path_helper.cpp
 **/*.smali
 
 # Build results

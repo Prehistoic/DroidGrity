@@ -55,7 +55,8 @@ def droidgrity(args):
     # Then we fill the different templates with the retrieved informations
     cpp_template_filler = TemplateFiller(DYLIB_CPP_TEMPLATE)
     data = {
-        "appPackageName": package_name.replace(".", "_"),
+        "appPackageName_withDots": package_name,
+        "appPackageName_withUnderscores": package_name.replace(".", "_"),
         "knownCertHash": ", ".join(f"0x{part.lower()}" for part in certificate_hash.split())
     }
     filled_cpp_template = cpp_template_filler.fill(data)

@@ -14,10 +14,20 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 # build script scope).
 project("droidgrity")
 
-add_library(${CMAKE_PROJECT_NAME} SHARED
-        droidgrity.cpp)
+add_library(
+        ${CMAKE_PROJECT_NAME} 
+        
+        SHARED
+        
+        droidgrity.cpp
+        mylibc.cpp
+        path_helper.cpp
+)
 
-target_link_libraries(${CMAKE_PROJECT_NAME}
-    # List libraries link to the target library
+target_link_libraries(
+        ${CMAKE_PROJECT_NAME}
+        
+        # List libraries link to the target library
         android
-        log)
+        log
+)

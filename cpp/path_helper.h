@@ -1,0 +1,45 @@
+/*
+
+The MIT License (MIT)
+
+Copyright (c) 2018  Dmitrii Kozhevin <kozhevin.dima@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+and associated documentation files (the “Software”), to deal in the Software without
+restriction, including without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or
+substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+ */
+
+// Took inspiration from https://github.com/DimaKoz/stunning-signature/blob/master/app/src/main/c/path_helper.c
+
+#ifndef PATH_HELPER_H
+#define PATH_HELPER_H
+
+#include <stdlib.h>
+#include <fcntl.h> // for O_RDONLY and O_DIRECTORY
+
+/*
+A shame that we have to include this but we need it for std::string. We don't use it to import methods though since we redefined them in mylibc to avoid hooking !
+Could maybe do this another way but I lost my sanity trying to do things with char * rather than std::string
+*/
+#include <string>
+
+#include "mylibc.h"
+
+#define BUFFER_SIZE 1024
+#define PATH_SIZE 256
+
+char * getApkPath(char * packageName);
+
+#endif //PATH_HELPER_H

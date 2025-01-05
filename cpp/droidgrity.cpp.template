@@ -1,10 +1,12 @@
 #include <jni.h>
 #include <android/log.h>
 #include <stdlib.h>
+#include <fcntl.h>
 #include <cinttypes>
 
 #include "mylibc.h"
 #include "sha256.h"
+#include "path_helper.h"
 
 #define APK_SIG_BLOCK_MAGIC "APK Sig Block 42"
 #define APK_SIG_V2_SCHEME_BLOCK_ID 0x7109871a
@@ -283,7 +285,7 @@ char* convertToHex(const unsigned char* hash, size_t length) {
 }
 
 int verifyCertificateFromAPK(const char* apkPath, unsigned char* knownCertHash, size_t hashLen) {
-    int fd = my_openat(apkPath, 0);
+    int fd = my_openat(AT_FDCWD, apkPath, O_RDONLY);
     if (fd < 0) {
         __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Failed to open APK %s", apkPath);
         return -1;
@@ -339,18 +341,23 @@ int verifyCertificateFromAPK(const char* apkPath, unsigned char* knownCertHash, 
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_@droidgrity.filler.appPackageName@_DroidGrity_isApkTampered(JNIEnv *env,
+Java_@droidgrity.filler.appPackageName_withUnderscores@_DroidGrity_isApkTampered(JNIEnv *env,
                                                                 jobject instance,
-                                                                jstring apkPath) {
-    // Convert the Java string to a C++ string
-    const char *nativePath = env->GetStringUTFChars(apkPath, nullptr);
-    __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "APK Path = %s", nativePath);
+                                                                jstring toto) {
+    const char *apkPath = getApkPath("@droidgrity.filler.appPackageName_withDots@");
+
+    if (apkPath == NULL) {
+        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Could not find APK, aborting ! Application is not protected !");
+        return JNI_FALSE;
+    }
+
+    __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "APK Path = %s", apkPath);
 
     // Known hash of the original signing certificate
     unsigned char knownCertHash[SHA256_BYTES_SIZE] = { @droidgrity.filler.knownCertHash@ };
 
     // Verify the certificate used to sign the APK
-    if (verifyCertificateFromAPK(nativePath, knownCertHash, SHA256_BYTES_SIZE) < 0) {
+    if (verifyCertificateFromAPK(apkPath, knownCertHash, SHA256_BYTES_SIZE) < 0) {
         // APK was tampered with so we'll crash by referencing a null pointer !
         __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "APK was tampered with, crashing !");
         int *ptr = NULL;
