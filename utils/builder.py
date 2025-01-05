@@ -47,11 +47,12 @@ class CMakeBuilder:
             
             self.logger.info(f"mkdir {BUILD_DIR}")
             os.mkdir(BUILD_DIR)
-            
+
+            # Finally we build the droidgrity dylib for the chosen abis
             built_dylibs = []
             for abi in self.target_abis:
                 try:
-                    self.logger.info(f"Building for ABI {abi}...")
+                    self.logger.info(f"Building libdroidgrity.so for ABI {abi}...")
                     target_dir = os.path.join(BUILD_DIR, abi)
                     
                     configuration_cmd = f"cmake -S{src_dir} -B{target_dir} -DCMAKE_TOOLCHAIN_FILE={android_toolchain} -DANDROID_ABI={abi} -DANDROID_PLATFORM=android-{self.target_android_sdk} -DCMAKE_BUILD_TYPE=Release"

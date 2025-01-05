@@ -4,7 +4,7 @@ import shutil
 import subprocess
 import os
 
-from constants import INJECTED_APK_DIR, BUILD_DIR, TEMP_DIR
+from constants import INJECTED_APK_DIR, BUILD_DIR, TEMP_DIR, PREREQUISITE_DYLIBS_PATH, PREREQUISITE_DYLIBS
 
 class DylibInjector:
 
@@ -36,17 +36,26 @@ class DylibInjector:
 
             # Step 2 : Add the dylibs to the APK
             inserted_dylibs_paths = []
-            for abi in os.listdir(BUILD_DIR):
-                abi_dir = os.path.join(BUILD_DIR, abi)
-                if not os.path.isdir(abi_dir):
-                    continue # Skip files, only process directories
-
+            for abi in [element for element in os.listdir(BUILD_DIR) if os.path.isdir(os.path.join(BUILD_DIR, element))]:
                 lib_path_in_apk = os.path.join(TEMP_DIR, "lib", abi)
                 os.makedirs(lib_path_in_apk, exist_ok=True)
 
-                for lib_file in os.listdir(abi_dir):
+                # First we inject the prerequisite dylib
+                prerequisite_dylibs_abi_dir = os.path.join(PREREQUISITE_DYLIBS_PATH, abi)
+                for lib_file in os.listdir(prerequisite_dylibs_abi_dir):
+                    if lib_file in PREREQUISITE_DYLIBS:
+                        src_file = os.path.join(prerequisite_dylibs_abi_dir, lib_file)
+                        dst_file = os.path.join(lib_path_in_apk, lib_file)
+                        shutil.copy(src_file, dst_file)
+                        self.logger.info(f"Injected {src_file} into {dst_file}")
+
+                        inserted_dylibs_paths.append(os.path.join("lib", abi, lib_file))
+
+                # Then we inject the libdroidgrity.so dylib we built
+                built_dylib_abi_dir = os.path.join(BUILD_DIR, abi)
+                for lib_file in os.listdir(built_dylib_abi_dir):
                     if lib_file.endswith(".so"):
-                        src_file = os.path.join(abi_dir, lib_file)
+                        src_file = os.path.join(built_dylib_abi_dir, lib_file)
                         dst_file = os.path.join(lib_path_in_apk, lib_file)
                         shutil.copy(src_file, dst_file)
                         self.logger.info(f"Injected {src_file} into {dst_file}")
@@ -94,7 +103,7 @@ class DylibInjector:
                 elif in_on_create and "return-void" in line:
                     # Basically we just add some code that will invoke the isApkTampered method from the DroidGrity.smali file we injected, before the end on the onCreate method
                     new_smali_code.append(f"    sget-object v0, L{target_activity_package_name}/DroidGrity;->INSTANCE:L{target_activity_package_name}/DroidGrity;" + "\n\n")
-                    new_smali_code.append(f"    invoke-virtual {{p0}}, L{target_activity_package_name}/MainActivity;->getApplicationContext()Landroid/content/Context;" + "\n\n")
+                    new_smali_code.append(f"    invoke-virtual {{p0}}, L{target_activity_package_name}/{target_activity_name};->getApplicationContext()Landroid/content/Context;" + "\n\n")
                     new_smali_code.append(f"    move-result-object v2" + "\n\n")
                     new_smali_code.append(f"    invoke-virtual {{v2}}, Landroid/content/Context;->getApplicationInfo()Landroid/content/pm/ApplicationInfo;" + "\n\n")
                     new_smali_code.append(f"    move-result-object v2" + "\n\n")
