@@ -29,6 +29,10 @@ class CMakeBuilder:
                 self.logger.error("Missing Android NDK path, skipping build...")
                 return []
             
+            if not os.path.isdir(self.android_ndk_path):
+                self.logger.error("Given Android NDK path is not a directory, skipping build...")
+                return []
+            
             if not self.target_android_sdk:
                 self.logger.error("Missing target SDK to build, skipping build...")
                 return []
