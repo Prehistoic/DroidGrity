@@ -11,6 +11,7 @@ from utils.builder import CMakeBuilder
 from utils.injector import DylibInjector
 from utils.signer import ApkSigner
 from utils.installer import ApkInstaller
+from banner import print_banner
 
 def droidgrity(args):
      # Setting up logging
@@ -20,6 +21,8 @@ def droidgrity(args):
         datefmt="%d/%m/%Y %H:%M:%S",
         level=LOG_LEVELS_MAPPING.get(args.log_level),
     )
+
+    print_banner()
 
     # First we need to analyze the APK to retrieve its main package name + its signing certificate sha256 hash to fill tampercheck.cpp.template
     apk = APKUtils(args.apk)

@@ -1,5 +1,3 @@
-Add a banner
-
 Make it possible to pass keystore credentials somewhere else than in the CLI args
 
 Make it so the user can define a handler in its code rather than crashing the application
