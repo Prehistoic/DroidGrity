@@ -8,12 +8,13 @@ from constants import BUILD_DIR, BUILD_DYLIB_NAME
 
 class CMakeBuilder:
 
-    def __init__(self, target_android_sdk: str, target_abis: str, android_ndk_path: str = None):
+    def __init__(self, target_android_sdk: str, target_abis: str, android_ndk_path: str, build_type: str):
         self.logger = logging.getLogger(__name__)
 
         self.target_abis = target_abis
         self.target_android_sdk = target_android_sdk
         self.android_ndk_path = android_ndk_path
+        self.build_type = build_type
 
         if not self.android_ndk_path:
             self.logger.info("No Android NDK path given, using ANDROID_NDK_ROOT from ENV...")
@@ -58,11 +59,15 @@ class CMakeBuilder:
                 try:
                     self.logger.info(f"Building libdroidgrity.so for ABI {abi}...")
                     target_dir = os.path.join(BUILD_DIR, abi)
+
+                    self.logger.info(f"Chosen CMAKE_BUILD_TYPE : {self.build_type}")
                     
-                    configuration_cmd = f"cmake -S{src_dir} -B{target_dir} -DCMAKE_TOOLCHAIN_FILE={android_toolchain} -DANDROID_ABI={abi} -DANDROID_PLATFORM=android-{self.target_android_sdk} -DCMAKE_BUILD_TYPE=Release"
+                    configuration_cmd = f"cmake -S{src_dir} -B{target_dir} -DCMAKE_TOOLCHAIN_FILE={android_toolchain} -DANDROID_ABI={abi} -DANDROID_PLATFORM=android-{self.target_android_sdk} -DCMAKE_BUILD_TYPE={self.build_type}"
+                    self.logger.debug(configuration_cmd)
                     subprocess.run(configuration_cmd, shell=True, check=True, stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, text=True)
                     
                     build_cmd = f"cmake --build {target_dir} --parallel"
+                    self.logger.debug(build_cmd)
                     subprocess.run(build_cmd, shell=True, check=True, stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, text=True)
 
                     built_dylib = os.path.join(target_dir, BUILD_DYLIB_NAME)

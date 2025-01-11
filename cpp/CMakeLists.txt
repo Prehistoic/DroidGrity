@@ -14,6 +14,11 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 # build script scope).
 project("droidgrity")
 
+# Adding a build type to enable/disable android logs
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_definitions(-DENABLE_LOGS)
+endif()
+
 add_library(
         ${CMAKE_PROJECT_NAME} 
         

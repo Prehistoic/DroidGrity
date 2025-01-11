@@ -1,9 +1,9 @@
 #include <jni.h>
-#include <android/log.h>
 
 #include "mylibc.h"
 #include "sha256.h"
 #include "path_helper.h"
+#include "logging.h"
 
 #define APK_SIG_BLOCK_MAGIC "APK Sig Block 42"
 #define APK_SIG_V2_SCHEME_BLOCK_ID 0x7109871a
@@ -78,7 +78,7 @@ int findCertificateFile(int fd, off_t centralDirOffset, char* certFileName, off_
         my_read(fd, fileName, fileNameLength);
         fileName[fileNameLength] = '\0';
 
-        // __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Filename found : %s", fileName);
+        LOGD("Filename found : %s", fileName);
 
         if (my_strstr(fileName, "META-INF/") && (my_strstr(fileName, ".RSA") || my_strstr(fileName, ".DSA"))) {
             my_strlcpy(certFileName, fileName, my_strlen(fileName));
@@ -116,13 +116,13 @@ void getCertDataFromJarSignature(int fd, off_t eocdOffset, size_t* certSize, uns
     char certFileName[256];
     off_t certFileOffset;
     if (findCertificateFile(fd, centralDirOffset, certFileName, &certFileOffset, certSize) < 0) {
-        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Failed to locate META-INF/*.RSA or *.DSA file");
+        LOGE("Failed to locate META-INF/*.RSA or *.DSA file");
         return;
     }
 
     // Extract and hash the certificate file
     if (extractCertFile(fd, certFileOffset, certSize, certData) < 0) {
-        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Failed to extract certificate file");
+        LOGE("Failed to extract certificate file");
         return;
     }
 }
@@ -144,7 +144,7 @@ off_t locateAPKSigningBlock(int fd, off_t eocdOffset) {
         if (my_memcmp(buffer + i, APK_SIG_BLOCK_MAGIC, APK_SIG_BLOCK_MAGIC_LEN) == 0) {
             off_t blockOffset = searchOffset + i;
 
-            __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Found APK Signing Block at offset = %ld", blockOffset);
+            LOGD("Found APK Signing Block at offset = %ld", blockOffset);
             return blockOffset;
         }
     }
@@ -181,17 +181,17 @@ void extractCertificateFromSignatureV2SchemeBlock(const unsigned char* signature
     uint32_t signerSequenceSize = readLE32(ptr);
     ptr += 4;
 
-    __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Signer Sequence size: %u bytes", signerSequenceSize);
+    LOGD("Signer Sequence size: %u bytes", signerSequenceSize);
 
     uint32_t signedDataSize = readLE32(ptr);
     ptr += 4;
 
-    __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Signed data size: %u bytes", signedDataSize);
+    LOGD("Signed data size: %u bytes", signedDataSize);
 
     uint32_t digestsSize = readLE32(ptr);
     ptr += 4;
 
-    __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Digests size: %u bytes", digestsSize);
+    LOGD("Digests size: %u bytes", digestsSize);
 
     // Skipping digests
     ptr += digestsSize;
@@ -199,7 +199,7 @@ void extractCertificateFromSignatureV2SchemeBlock(const unsigned char* signature
     uint32_t certificatesSize = readLE32(ptr);
     ptr += 4;
 
-    __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Certificates size: %u bytes", certificatesSize);
+    LOGD("Certificates size: %u bytes", certificatesSize);
 
     // We will only retrieve the first certificate data
     uint32_t certificateSize = readLE32(ptr);
@@ -218,7 +218,7 @@ void parseAPKSigningBlock(int fd, off_t blockOffset, size_t* certSize, unsigned 
 
     auto* blockData = (unsigned char*) malloc(blockSize);
     if (!blockData) {
-        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Memory allocation failed");
+        LOGE("Memory allocation failed");
         return;
     }
 
@@ -233,12 +233,12 @@ void parseAPKSigningBlock(int fd, off_t blockOffset, size_t* certSize, unsigned 
         uint32_t id = readLE32(ptr);         // Read the ID
         uint64_t size = readLE64(ptr + 4);  // Read the size
 
-        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Found block: ID=0x%x Size=%lld bytes", id, (long long)size);
+        LOGD("Found block: ID=0x%x Size=%lld bytes", id, (long long)size);
 
         ptr += 8;
 
         if (id == APK_SIG_V2_SCHEME_BLOCK_ID) {
-            __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Found APK v2+ Signature Scheme block");
+            LOGD("Found APK v2+ Signature Scheme block");
             extractCertificateFromSignatureV2SchemeBlock(ptr, certSize, certData);
             break;
         }
@@ -247,7 +247,7 @@ void parseAPKSigningBlock(int fd, off_t blockOffset, size_t* certSize, unsigned 
 
         // Ensure no overflow
         if (ptr > end) {
-            __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Block size exceeds payload boundary");
+            LOGW("Block size exceeds payload boundary");
             break;
         }
     }
@@ -265,7 +265,7 @@ char* convertToHex(const unsigned char* hash, size_t length) {
     size_t bufferSize = (length * 2) + 1; // +1 for null terminator
     char* hexString = (char*) malloc(bufferSize);
     if (!hexString) {
-        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Memory allocation failed");
+        LOGE("Memory allocation failed");
         return nullptr;
     }
 
@@ -284,14 +284,14 @@ char* convertToHex(const unsigned char* hash, size_t length) {
 int verifyCertificateFromAPK(const char* apkPath, unsigned char* knownCertHash, size_t hashLen) {
     int fd = my_openat(AT_FDCWD, apkPath, O_RDONLY);
     if (fd < 0) {
-        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Failed to open APK %s", apkPath);
+        LOGE("Failed to open APK %s", apkPath);
         return -1;
     }
 
     // Locate EOCD
     off_t eocdOffset = findEOCD(fd);
     if (eocdOffset < 0) {
-        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Failed to locate EOCD");
+        LOGE("Failed to locate EOCD");
         my_close(fd);
         return -1;
     }
@@ -304,12 +304,12 @@ int verifyCertificateFromAPK(const char* apkPath, unsigned char* knownCertHash, 
 
     // If we didn't find any APK Signing Block, we look for JAR Signature (v1)
     if (certSize == 0) {
-        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Failed to find the certificates with method for v2+ signature. Trying with method for v1 signature...");
+        LOGW("Failed to find the certificates with method for v2+ signature. Trying with method for v1 signature...");
         getCertDataFromJarSignature(fd, eocdOffset, &certSize, certData);
     }
 
     if (certSize == 0) {
-        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Failed to find the certificate(s) with both methods");
+        LOGE("Failed to find the certificate(s) with both methods");
         my_close(fd);
         return -1;
     }
@@ -323,15 +323,15 @@ int verifyCertificateFromAPK(const char* apkPath, unsigned char* knownCertHash, 
 
     // Following lines are a helper I used to get my certificate sequence hash
     char* hexString = convertToHex(certHash, sizeof(certHash));
-    __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Found Certificate Hash = %s", hexString);
+    LOGI("Found Certificate Hash = %s", hexString);
     free(hexString);
 
     // Compare with known hash
     if (my_memcmp(certHash, knownCertHash, hashLen) == 0) {
-        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Certificate matches");
+        LOGI("Certificate matches");
         return 0;
     } else {
-        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Certificate does not match");
+        LOGE("Certificate does not match");
         return -1;
     }
 }
@@ -343,14 +343,14 @@ Java_@droidgrity.filler.appPackageName_withUnderscores@_DroidGrity_isApkTampered
     const char *apkPath = getApkPath("@droidgrity.filler.appPackageName_withDots@");
 
     if (apkPath == NULL) {
-        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "Could not find APK something may be fishy, crashing !");
+        LOGE("Could not find APK something may be fishy, crashing !");
         int *ptr = NULL;
         *ptr = 42;
 
         return JNI_TRUE;
     }
 
-    __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "APK Path = %s", apkPath);
+    LOGI("APK Path = %s", apkPath);
 
     // Known hash of the original signing certificate
     unsigned char knownCertHash[SHA256_BYTES_SIZE] = { @droidgrity.filler.knownCertHash@ };
@@ -358,13 +358,13 @@ Java_@droidgrity.filler.appPackageName_withUnderscores@_DroidGrity_isApkTampered
     // Verify the certificate used to sign the APK
     if (verifyCertificateFromAPK(apkPath, knownCertHash, SHA256_BYTES_SIZE) < 0) {
         // APK was tampered with so we'll crash by referencing a null pointer !
-        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "APK was tampered with, crashing !");
+        LOGE("APK was tampered with, crashing !");
         int *ptr = NULL;
         *ptr = 42;
 
         return JNI_TRUE;
     } else {
-        __android_log_print(ANDROID_LOG_VERBOSE, MODULE, "APK was not tampered with, continuing !");
+        LOGI("APK was not tampered with, continuing !");
         return JNI_FALSE;
     }
 }

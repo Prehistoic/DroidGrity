@@ -1,8 +1,6 @@
 Make it so the user can define a handler in its code rather than crashing the application
 Maybe you could also just start the dylib code with JNI_OnLoad
 
-Think about what to do with the logs, remove them or make it possible to create a version without them for production !
-
 Use o-llvm to obfuscate your library when building it ?
 
 Also write the README

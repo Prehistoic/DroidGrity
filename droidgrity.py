@@ -83,7 +83,7 @@ def droidgrity(args):
         logger.info(f"Template filled with success => {filled_smali_template}")
 
     # Then we build libdroidgrity.so each one of the provided ABIs
-    builder = CMakeBuilder(min_sdk, args.target_abi, args.android_ndk)
+    builder = CMakeBuilder(min_sdk, args.target_abi, args.android_ndk, args.build_type)
     built_dylibs = builder.build(DYLIB_SRC_PATH)
 
     if len(built_dylibs) != len(args.target_abi):
@@ -163,6 +163,7 @@ if __name__ == "__main__":
     dylib_args = parser.add_argument_group("Dylib")
     dylib_args.add_argument("-n", "--android-ndk", dest="android_ndk", help="Path to Android NDK", required=False) # If not specified we'll use env variable ANDROID_NDK_ROOT
     dylib_args.add_argument("-ta", "--target-abi", dest="target_abi", nargs='+', choices=ANDROID_ABIS, metavar="ABIs", help="Android ABI(s) to target", default=ANDROID_ABIS, required=False)
+    dylib_args.add_argument("-bt", "--build-type", dest="build_type", choices=["Debug", "Release"], default="Debug", help="Build type (mainly to enable/disable android logs)", required=False)
 
     other_args = parser.add_argument_group("Others")
     other_args.add_argument("-i", "--install", dest="install", action="store_true", help="Run ADB install", required=False)
