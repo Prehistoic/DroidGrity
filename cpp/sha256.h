@@ -1,5 +1,4 @@
-// Self ported sha256 implementation
-// Shamelessly stolen from https://github.com/983/SHA-256
+// Self ported sha256 implementation. All credits go to @983 : https://github.com/983/SHA-256
 
 #include <stddef.h>
 #include <stdint.h>
