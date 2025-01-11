@@ -91,8 +91,7 @@ class DylibInjector:
                 elif in_on_create and "return-void" in line:
                     # Basically we just add some code that will invoke the isApkTampered method from the DroidGrity.smali file we injected, before the end on the onCreate method
                     new_smali_code.append(f"    sget-object v0, L{target_activity_package_name}/DroidGrity;->INSTANCE:L{target_activity_package_name}/DroidGrity;" + "\n\n")
-                    new_smali_code.append(f"    invoke-virtual {{v0}}, L{target_activity_package_name}/DroidGrity;->isApkTampered()Z" + "\n\n")
-                    new_smali_code.append(f"    move-result v0" + "\n\n")
+                    new_smali_code.append(f"    invoke-virtual {{v0}}, L{target_activity_package_name}/DroidGrity;->checkApkIntegrity()V" + "\n\n")
                     in_on_create = False
                 
                 # We add the original (or updated line) and go to the next line

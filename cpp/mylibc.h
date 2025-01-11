@@ -15,6 +15,8 @@ ssize_t my_read(int fd, void* buf, size_t count);
 
 int my_close(int fd);
 
+off_t my_lseek(int fd, off_t offset, int whence);
+
 size_t my_strlcpy(char *dst, const char *src, size_t siz);
 
 size_t my_strlen(const char *s);

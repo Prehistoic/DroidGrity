@@ -64,5 +64,5 @@
 
 
 # virtual methods
-.method public final native isApkTampered()Z
+.method public final native checkApkIntegrity()V
 .end method

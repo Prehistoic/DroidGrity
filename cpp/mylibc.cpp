@@ -16,6 +16,10 @@ int my_close(int fd) {
     return (int) syscall(__NR_close, fd);
 }
 
+off_t my_lseek(int fd, off_t offset, int whence) {
+    return (off_t) syscall(__NR_lseek, fd, offset, whence);
+}
+
 __attribute__((always_inline))
 size_t my_strlcpy(char *dst, const char *src, size_t size)
 {

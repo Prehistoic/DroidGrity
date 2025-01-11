@@ -15,8 +15,6 @@
 
 #define BUFFER_SIZE 8192
 
-const char* MODULE = "DROIDGRITY";
-
 // Helper to read a little-endian 32-bit value from the buffer
 uint32_t readLE32(const unsigned char* buffer) {
     return buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24);
@@ -37,11 +35,11 @@ uint64_t readLE64(const unsigned char* buffer) {
 // Read the last N bytes of the file to locate EOCD
 off_t findEOCD(int fd) {
     char buffer[BUFFER_SIZE];
-    off_t fileSize = lseek(fd, 0, SEEK_END);
+    off_t fileSize = my_lseek(fd, 0, SEEK_END);
     off_t offset = fileSize - BUFFER_SIZE;
     if (offset < 0) offset = 0;
 
-    lseek(fd, offset, SEEK_SET);
+    my_lseek(fd, offset, SEEK_SET);
     ssize_t bytesRead = my_read(fd, buffer, BUFFER_SIZE);
 
     for (int i = (int) bytesRead - 22; i >= 0; --i) {
@@ -56,14 +54,14 @@ off_t findEOCD(int fd) {
 // Parse EOCD and get the central directory offset
 off_t getCentralDirectoryOffset(int fd, off_t eocdOffset) {
     char eocdBuffer[22]; // EOCD minimum size
-    lseek(fd, eocdOffset, SEEK_SET);
+    my_lseek(fd, eocdOffset, SEEK_SET);
     my_read(fd, eocdBuffer, sizeof(eocdBuffer));
     return *(off_t *)(eocdBuffer + 16); // Central Directory offset
 }
 
 // Extract Central Directory and find META-INF/*.RSA or META-INF/*.DSA
 int findCertificateFile(int fd, off_t centralDirOffset, char* certFileName, off_t* fileOffset, size_t* fileSize) {
-    lseek(fd, centralDirOffset, SEEK_SET);
+    my_lseek(fd, centralDirOffset, SEEK_SET);
     char buffer[46]; // Central Directory file header size
 
     while (my_read(fd, buffer, sizeof(buffer)) > 0) {
@@ -88,7 +86,7 @@ int findCertificateFile(int fd, off_t centralDirOffset, char* certFileName, off_
         }
 
         // Skip extra fields and comments
-        lseek(fd, extraFieldLength + commentLength, SEEK_CUR);
+        my_lseek(fd, extraFieldLength + commentLength, SEEK_CUR);
     }
 
     return -1; // Not found
@@ -96,13 +94,13 @@ int findCertificateFile(int fd, off_t centralDirOffset, char* certFileName, off_
 
 // Extract the certificate file data
 int extractCertFile(int fd, off_t fileOffset, const size_t* fileSize, unsigned char* buffer) {
-    lseek(fd, fileOffset, SEEK_SET);
+    my_lseek(fd, fileOffset, SEEK_SET);
     char header[30]; // Local file header size
     my_read(fd, header, sizeof(header));
 
     uint16_t nameLength = *(uint16_t*)(header + 26);
     uint16_t extraLength = *(uint16_t*)(header + 28);
-    lseek(fd, nameLength + extraLength, SEEK_CUR); // Skip to file data
+    my_lseek(fd, nameLength + extraLength, SEEK_CUR); // Skip to file data
 
     ssize_t bytesRead = my_read(fd, buffer, *fileSize);
     return (bytesRead == *fileSize) ? 0 : -1;
@@ -137,8 +135,8 @@ off_t locateAPKSigningBlock(int fd, off_t eocdOffset) {
     off_t searchOffset = centralDirOffset - BUFFER_SIZE;
     if (searchOffset < 0) searchOffset = 0;
 
-    lseek(fd, searchOffset, SEEK_SET);
-    ssize_t bytesRead = read(fd, buffer, BUFFER_SIZE);
+    my_lseek(fd, searchOffset, SEEK_SET);
+    ssize_t bytesRead = my_read(fd, buffer, BUFFER_SIZE);
 
     for (ssize_t i = bytesRead - APK_SIG_BLOCK_MAGIC_LEN; i >= 0; --i) {
         if (my_memcmp(buffer + i, APK_SIG_BLOCK_MAGIC, APK_SIG_BLOCK_MAGIC_LEN) == 0) {
@@ -212,7 +210,7 @@ void extractCertificateFromSignatureV2SchemeBlock(const unsigned char* signature
 // Parse APK Signing Block
 void parseAPKSigningBlock(int fd, off_t blockOffset, size_t* certSize, unsigned char* certData) {
     unsigned char sizeBuffer[8];
-    lseek(fd, blockOffset - 8, SEEK_SET); // Read the size field
+    my_lseek(fd, blockOffset - 8, SEEK_SET); // Read the size field
     my_read(fd, sizeBuffer, sizeof(sizeBuffer));
     auto blockSize = (off_t) readLE64(sizeBuffer);
 
@@ -222,7 +220,7 @@ void parseAPKSigningBlock(int fd, off_t blockOffset, size_t* certSize, unsigned 
         return;
     }
 
-    lseek(fd, blockOffset - blockSize, SEEK_SET);
+    my_lseek(fd, blockOffset - blockSize, SEEK_SET);
     my_read(fd, blockData, blockSize);
 
     // Iterate over key-value pairs (simplified)
@@ -269,11 +267,12 @@ char* convertToHex(const unsigned char* hash, size_t length) {
         return nullptr;
     }
 
-    // Fill the buffer with hex representation
+    // Fill the buffer with hex representation. This is a bit dirty but allows us to avoid using any glibc function like sprintf
     char* ptr = hexString;
     for (size_t i = 0; i < length; i++) {
-        sprintf(ptr, "%02x", hash[i]); // Convert each byte to hex
-        ptr += 2;                     // Move pointer forward by 2 for next hex digits
+        unsigned char byte = hash[i];
+        *ptr++ = "0123456789abcdef"[byte >> 4];  // High nibble
+        *ptr++ = "0123456789abcdef"[byte & 0x0F]; // Low nibble
     }
 
     // Null-terminate the string
@@ -337,8 +336,8 @@ int verifyCertificateFromAPK(const char* apkPath, unsigned char* knownCertHash, 
 }
 
 extern "C"
-JNIEXPORT jboolean JNICALL
-Java_@droidgrity.filler.appPackageName_withUnderscores@_DroidGrity_isApkTampered(JNIEnv *env,
+JNIEXPORT void JNICALL
+Java_@droidgrity.filler.appPackageName_withUnderscores@_DroidGrity_checkApkIntegrity(JNIEnv *env,
                                                                 jobject instance) {
     const char *apkPath = getApkPath("@droidgrity.filler.appPackageName_withDots@");
 
@@ -346,8 +345,6 @@ Java_@droidgrity.filler.appPackageName_withUnderscores@_DroidGrity_isApkTampered
         LOGE("Could not find APK something may be fishy, crashing !");
         int *ptr = NULL;
         *ptr = 42;
-
-        return JNI_TRUE;
     }
 
     LOGI("APK Path = %s", apkPath);
@@ -361,10 +358,7 @@ Java_@droidgrity.filler.appPackageName_withUnderscores@_DroidGrity_isApkTampered
         LOGE("APK was tampered with, crashing !");
         int *ptr = NULL;
         *ptr = 42;
-
-        return JNI_TRUE;
     } else {
         LOGI("APK was not tampered with, continuing !");
-        return JNI_FALSE;
     }
 }
