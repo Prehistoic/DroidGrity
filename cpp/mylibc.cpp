@@ -1,9 +1,5 @@
 #include "mylibc.h"
 
-int my_open(const char * path, int flags) {
-    return (int) syscall(__NR_open, path, flags);
-}
-
 int my_openat(int dirfd, const char* path, int flags) {
     return (int) syscall(__NR_openat, dirfd, path, flags);
 }

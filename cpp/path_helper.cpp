@@ -62,7 +62,7 @@ static char * getPathFromEntry(const char * line, const char * packageName) {
 
 char * getApkPath(const char * packageName) {
     // Open the /proc/self directory
-    int dir_fd = my_open("/proc/self", O_RDONLY | O_DIRECTORY);
+    int dir_fd = my_openat(AT_FDCWD, "/proc/self", O_RDONLY | O_DIRECTORY);
     if (dir_fd == -1) {
         return NULL;
     }

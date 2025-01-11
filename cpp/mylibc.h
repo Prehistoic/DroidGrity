@@ -7,8 +7,6 @@
 #include <fcntl.h> // For O_RDONLY, O_DIRECTORY, AT_FDCWD
 #include <stddef.h> // For some types
 
-int my_open(const char * path, int flags);
-
 int my_openat(int dirfd, const char* path, int flags);
 
 ssize_t my_read(int fd, void* buf, size_t count);
