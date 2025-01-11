@@ -24,7 +24,7 @@ def droidgrity(args):
 
     print_banner()
 
-    # First we need to analyze the APK to retrieve its main package name + its signing certificate sha256 hash to fill tampercheck.cpp.template
+    # First we need to analyze the APK to retrieve its main package name + its signing certificate sha256 hash to fill droidgrity.cpp.template
     apk = APKUtils(args.apk)
     
     package_name = apk.get_package_name()
