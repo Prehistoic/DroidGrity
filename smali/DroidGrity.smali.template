@@ -64,5 +64,5 @@
 
 
 # virtual methods
-.method public final native isApkTampered(Ljava/lang/String;)Z
+.method public final native isApkTampered()Z
 .end method

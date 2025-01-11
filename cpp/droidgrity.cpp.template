@@ -339,8 +339,7 @@ int verifyCertificateFromAPK(const char* apkPath, unsigned char* knownCertHash, 
 extern "C"
 JNIEXPORT jboolean JNICALL
 Java_@droidgrity.filler.appPackageName_withUnderscores@_DroidGrity_isApkTampered(JNIEnv *env,
-                                                                jobject instance,
-                                                                jstring apkPathFromJava) {
+                                                                jobject instance) {
     const char *apkPath = getApkPath("@droidgrity.filler.appPackageName_withDots@");
 
     if (apkPath == NULL) {

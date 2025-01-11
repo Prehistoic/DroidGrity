@@ -87,16 +87,11 @@ class DylibInjector:
                 elif in_on_create and ".locals" in line:
                     # We're updating the number of required registers if it is lower than the one we need in the code we will inject below
                     register_count = int(line.replace(".locals", "").strip())
-                    line = f"    .locals 3" if register_count < 3 else line
+                    line = f"    .locals 1" if register_count < 1 else line
                 elif in_on_create and "return-void" in line:
                     # Basically we just add some code that will invoke the isApkTampered method from the DroidGrity.smali file we injected, before the end on the onCreate method
                     new_smali_code.append(f"    sget-object v0, L{target_activity_package_name}/DroidGrity;->INSTANCE:L{target_activity_package_name}/DroidGrity;" + "\n\n")
-                    new_smali_code.append(f"    invoke-virtual {{p0}}, L{target_activity_package_name}/{target_activity_name};->getApplicationContext()Landroid/content/Context;" + "\n\n")
-                    new_smali_code.append(f"    move-result-object v2" + "\n\n")
-                    new_smali_code.append(f"    invoke-virtual {{v2}}, Landroid/content/Context;->getApplicationInfo()Landroid/content/pm/ApplicationInfo;" + "\n\n")
-                    new_smali_code.append(f"    move-result-object v2" + "\n\n")
-                    new_smali_code.append(f"    iget-object v2, v2, Landroid/content/pm/ApplicationInfo;->sourceDir:Ljava/lang/String;" + "\n\n")
-                    new_smali_code.append(f"    invoke-virtual {{v0, v2}}, L{target_activity_package_name}/DroidGrity;->isApkTampered(Ljava/lang/String;)Z" + "\n\n")
+                    new_smali_code.append(f"    invoke-virtual {{v0}}, L{target_activity_package_name}/DroidGrity;->isApkTampered()Z" + "\n\n")
                     new_smali_code.append(f"    move-result v0" + "\n\n")
                     in_on_create = False
                 
