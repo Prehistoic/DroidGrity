@@ -1,5 +1,3 @@
-Make it possible to pass keystore credentials somewhere else than in the CLI args
-
 Make it so the user can define a handler in its code rather than crashing the application
 Maybe you could also just start the dylib code with JNI_OnLoad
 
@@ -7,7 +5,7 @@ Think about what to do with the logs, remove them or make it possible to create 
 
 Use o-llvm to obfuscate your library when building it ?
 
-Also write the README, add a LICENCE...
+Also write the README
 
 Clean the code, better comments, smaller functions...
 
