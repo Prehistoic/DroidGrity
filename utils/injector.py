@@ -13,8 +13,8 @@ class DylibInjector:
         
         self.apk = apk_path
 
-    def inject(self, target_activity: str, smali_file: str):
-        self.logger.info(f"Attempting to inject DroidGrity.smali and loading dylibs in {target_activity}")
+    def inject(self, activities: list[str], main_activity: str, smali_file: str):
+        self.logger.info(f"Attempting to inject DroidGrity.smali and loading dylibs in all activities")
 
         # First we verify that apktool is in the PATH
         if not shutil.which("apktool"):
@@ -65,41 +65,46 @@ class DylibInjector:
                 f.writelines(apktool_conf)
             
             # Step 3 : Insert DroidGrity.smali
-            target_activity_package_name = "/".join(target_activity.split("/")[:-1])
-            target_activity_name = target_activity.split("/")[-1]
-            dst_file = os.path.join(TEMP_DIR, "smali", *(target_activity_package_name.split("/")), os.path.basename(smali_file))
+            main_activity_package_name = "/".join(main_activity.split("/")[:-1])
+            dst_file = os.path.join(TEMP_DIR, "smali", *(main_activity_package_name.split("/")), os.path.basename(smali_file))
             self.logger.info(f"Copying {smali_file} to {dst_file}")
             shutil.copy(smali_file, dst_file)
                 
-            # Step 4 : Modify smali files to load and use the dylibs
-            target_activity_smali = os.path.join(TEMP_DIR, "smali", *(target_activity_package_name.split("/")), target_activity_name + ".smali")
-            with open(target_activity_smali, "r") as f:
-                smali_code = f.readlines()
-            
-            new_smali_code = []
-            in_on_create = False
-            idx = 0
-            while idx < len(smali_code):
-                line = smali_code[idx]
+            # Step 4 : Modify all activities smali files to load and use the dylibs
+            for target_activity in activities:
+                self.logger.info(f"Injecting into {target_activity}")
 
-                if ".method protected onCreate(Landroid/os/Bundle;)V" in line:  # Hook into onCreate method
-                    in_on_create = True
-                elif in_on_create and ".locals" in line:
-                    # We're updating the number of required registers if it is lower than the one we need in the code we will inject below
-                    register_count = int(line.replace(".locals", "").strip())
-                    line = f"    .locals 1" if register_count < 1 else line
-                elif in_on_create and "return-void" in line:
-                    # Basically we just add some code that will invoke the isApkTampered method from the DroidGrity.smali file we injected, before the end on the onCreate method
-                    new_smali_code.append(f"    sget-object v0, L{target_activity_package_name}/DroidGrity;->INSTANCE:L{target_activity_package_name}/DroidGrity;" + "\n\n")
-                    new_smali_code.append(f"    invoke-virtual {{v0}}, L{target_activity_package_name}/DroidGrity;->checkApkIntegrity()V" + "\n\n")
-                    in_on_create = False
+                target_activity_package_name = "/".join(target_activity.split("/")[:-1])
+                target_activity_name = target_activity.split("/")[-1]
+
+                target_activity_smali = os.path.join(TEMP_DIR, "smali", *(target_activity_package_name.split("/")), target_activity_name + ".smali")
+                with open(target_activity_smali, "r") as f:
+                    smali_code = f.readlines()
                 
-                # We add the original (or updated line) and go to the next line
-                new_smali_code.append(line)
-                idx += 1
+                new_smali_code = []
+                in_on_create = False
+                idx = 0
+                while idx < len(smali_code):
+                    line = smali_code[idx]
 
-            with open(target_activity_smali, "w") as f:
-                f.writelines(new_smali_code)
+                    if ".method protected onCreate(Landroid/os/Bundle;)V" in line:  # Hook into onCreate method
+                        in_on_create = True
+                    elif in_on_create and ".locals" in line:
+                        # We're updating the number of required registers if it is lower than the one we need in the code we will inject below
+                        register_count = int(line.replace(".locals", "").strip())
+                        line = f"    .locals 1" if register_count < 1 else line
+                    elif in_on_create and "return-void" in line:
+                        # Basically we just add some code that will invoke the isApkTampered method from the DroidGrity.smali file we injected, before the end on the onCreate method
+                        new_smali_code.append(f"    sget-object v0, L{main_activity_package_name}/DroidGrity;->INSTANCE:L{main_activity_package_name}/DroidGrity;" + "\n\n")
+                        new_smali_code.append(f"    invoke-virtual {{v0}}, L{main_activity_package_name}/DroidGrity;->checkApkIntegrity()V" + "\n\n")
+                        in_on_create = False
+                    
+                    # We add the original (or updated line) and go to the next line
+                    new_smali_code.append(line)
+                    idx += 1
+
+                with open(target_activity_smali, "w") as f:
+                    f.writelines(new_smali_code)
 
             # Step 5 : Rebuild the APK
             self.logger.info(f"Rebuilding APK from {TEMP_DIR}")

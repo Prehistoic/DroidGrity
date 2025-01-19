@@ -51,3 +51,11 @@ class APKUtils:
         except Exception:
             self.logger.error(f"Failed to retrieve main activity:\n{traceback.format_exc()}")
             return None
+        
+    def get_activities(self):
+        try:
+            apk = APK(self.path)
+            return apk.get_activities()
+        except Exception:
+            self.logger.error(f"Failed to retrieve activities:\n{traceback.format_exc()}")
+            return None

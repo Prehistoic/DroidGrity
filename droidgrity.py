@@ -54,6 +54,13 @@ def droidgrity(args):
         sys.exit(-1)
     else:
         logger.info(f"APK - Main Activity = {main_activity}")
+
+    activities = [activity.replace(".", "/") for activity in apk.get_activities()]
+    if not activities:
+        logger.error("Failed to retrieve activities. Exiting...")
+        sys.exit("-1")
+    else:
+        logger.info(f"APK - Activities = {', '.join(activities)}")
     
     # Then we fill the different templates with the retrieved informations
     cpp_template_filler = TemplateFiller(DYLIB_CPP_TEMPLATE)
@@ -94,7 +101,7 @@ def droidgrity(args):
 
     # Then we inject each libdroidgrity.so into the provided APK and we rebuild a new one
     injector = DylibInjector(args.apk)
-    injected_apk = injector.inject(main_activity, filled_smali_template)
+    injected_apk = injector.inject(activities, main_activity, filled_smali_template)
 
     if not injected_apk:
         logger.error("Failed to inject dylib into APK. Exiting...")
