@@ -21,3 +21,4 @@
 - Frida can be used to hook native methods and replace them so basically just have to replace the integrity check JNI method with a log
 
     - Implement additional anti-frida/hooking tools checks into the application
+    - Obfuscating the native code to make it more difficult to know which native method to hook
