@@ -106,7 +106,7 @@ int extractCertFile(int fd, off_t fileOffset, const size_t* fileSize, unsigned c
     return (bytesRead == *fileSize) ? 0 : -1;
 }
 
-void getCertDataFromJarSignature(int fd, off_t eocdOffset, size_t* certSize, unsigned char* certData) {
+int getCertDataFromJarSignature(int fd, off_t eocdOffset, size_t* certSize, unsigned char* certData) {
     // Get Central Directory offset
     off_t centralDirOffset = getCentralDirectoryOffset(fd, eocdOffset);
 
@@ -115,14 +115,16 @@ void getCertDataFromJarSignature(int fd, off_t eocdOffset, size_t* certSize, uns
     off_t certFileOffset;
     if (findCertificateFile(fd, centralDirOffset, certFileName, &certFileOffset, certSize) < 0) {
         LOGE("Failed to locate META-INF/*.RSA or *.DSA file");
-        return;
+        return -1;
     }
 
     // Extract and hash the certificate file
     if (extractCertFile(fd, certFileOffset, certSize, certData) < 0) {
         LOGE("Failed to extract certificate file");
-        return;
+        return -1;
     }
+
+    return 0;
 }
 
 // Locate APK Signing Block
@@ -150,7 +152,7 @@ off_t locateAPKSigningBlock(int fd, off_t eocdOffset) {
 }
 
 // Helper to extract the 1st certificate from the APK Signature Scheme v2 block
-void extractCertificateFromSignatureV2SchemeBlock(const unsigned char* signatureV2SchemeBlock, size_t* certSize, unsigned char* certData) {
+int extractCertificateFromSignatureV2SchemeBlock(const unsigned char* signatureV2SchemeBlock, size_t* certSize, unsigned char* certData) {
     const unsigned char* ptr = signatureV2SchemeBlock;
 
     // Signing V2 scheme block format : https://source.android.com/docs/security/features/apksigning/v2#apk-signature-scheme-v2-block-format
@@ -205,10 +207,12 @@ void extractCertificateFromSignatureV2SchemeBlock(const unsigned char* signature
 
     *certSize = certificateSize;
     my_memcpy(certData, ptr, certificateSize);
+
+    return 0;
 }
 
 // Parse APK Signing Block
-void parseAPKSigningBlock(int fd, off_t blockOffset, size_t* certSize, unsigned char* certData) {
+int parseAPKSigningBlock(int fd, off_t blockOffset, size_t* certSize, unsigned char* certData) {
     unsigned char sizeBuffer[8];
     my_lseek(fd, blockOffset - 8, SEEK_SET); // Read the size field
     my_read(fd, sizeBuffer, sizeof(sizeBuffer));
@@ -217,7 +221,7 @@ void parseAPKSigningBlock(int fd, off_t blockOffset, size_t* certSize, unsigned 
     auto* blockData = (unsigned char*) malloc(blockSize);
     if (!blockData) {
         LOGE("Memory allocation failed");
-        return;
+        return -1;
     }
 
     my_lseek(fd, blockOffset - blockSize, SEEK_SET);
@@ -227,6 +231,7 @@ void parseAPKSigningBlock(int fd, off_t blockOffset, size_t* certSize, unsigned 
     unsigned char* ptr = blockData;
     const unsigned char* end = blockData + blockSize;
 
+    int success = -1;
     while (ptr + 8 <= end) {
         uint32_t id = readLE32(ptr);         // Read the ID
         uint64_t size = readLE64(ptr + 4);  // Read the size
@@ -237,7 +242,7 @@ void parseAPKSigningBlock(int fd, off_t blockOffset, size_t* certSize, unsigned 
 
         if (id == APK_SIG_V2_SCHEME_BLOCK_ID) {
             LOGD("Found APK v2+ Signature Scheme block");
-            extractCertificateFromSignatureV2SchemeBlock(ptr, certSize, certData);
+            success = extractCertificateFromSignatureV2SchemeBlock(ptr, certSize, certData);
             break;
         }
 
@@ -251,11 +256,13 @@ void parseAPKSigningBlock(int fd, off_t blockOffset, size_t* certSize, unsigned 
     }
 
     free(blockData);
+
+    return success;
 }
 
-void getCertDataFromAPKSigningBlock(int fd, off_t eocdOffset, size_t* certSize, unsigned char* certData) {
+int getCertDataFromAPKSigningBlock(int fd, off_t eocdOffset, size_t* certSize, unsigned char* certData) {
     off_t blockOffset = locateAPKSigningBlock(fd, eocdOffset);
-    parseAPKSigningBlock(fd, blockOffset, certSize, certData);
+    return parseAPKSigningBlock(fd, blockOffset, certSize, certData);
 }
 
 char* convertToHex(const unsigned char* hash, size_t length) {
@@ -299,15 +306,15 @@ int verifyCertificateFromAPK(const char* apkPath, unsigned char* knownCertHash, 
     unsigned char certData[BUFFER_SIZE];
 
     // First we try to look for APK Signing Block (v2+)
-    getCertDataFromAPKSigningBlock(fd, eocdOffset, &certSize, certData);
+    int success = getCertDataFromAPKSigningBlock(fd, eocdOffset, &certSize, certData);
 
     // If we didn't find any APK Signing Block, we look for JAR Signature (v1)
-    if (certSize == 0) {
+    if (success < 0) {
         LOGW("Failed to find the certificates with method for v2+ signature. Trying with method for v1 signature...");
-        getCertDataFromJarSignature(fd, eocdOffset, &certSize, certData);
+        success = getCertDataFromJarSignature(fd, eocdOffset, &certSize, certData);
     }
 
-    if (certSize == 0) {
+    if (success < 0) {
         LOGE("Failed to find the certificate(s) with both methods");
         my_close(fd);
         return -1;
