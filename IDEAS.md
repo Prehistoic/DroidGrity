@@ -1,5 +1,8 @@
 # TO DO
 
+- Finir debug hash cert quand signing scheme = v1
+- Finir debug hash cert quand signing scheme = v2 & arch = x86_64
+
 - Fill README.md
 
 - Create a docker image

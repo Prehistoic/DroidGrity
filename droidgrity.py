@@ -4,7 +4,7 @@ import shutil
 import sys
 import os
 
-from constants import ANDROID_ABIS, LOG_LEVELS_MAPPING, DYLIB_SRC_PATH, DYLIB_CPP_TEMPLATE, DYLIB_SMALI_TEMPLATE, BUILD_DIR, INJECTED_APK_DIR, TEMP_DIR
+from constants import ANDROID_ABIS, ANDROID_SIGNING_SCHEMES, LOG_LEVELS_MAPPING, DYLIB_SRC_PATH, DYLIB_CPP_TEMPLATE, DYLIB_SMALI_TEMPLATE, BUILD_DIR, INJECTED_APK_DIR, TEMP_DIR
 from utils.apk import APKUtils
 from utils.filler import TemplateFiller
 from utils.builder import CMakeBuilder
@@ -110,7 +110,7 @@ def droidgrity(args):
         logger.info(f"Injected dylib successfully. New APK => {injected_apk}")
 
     # Then we resign the newly built APK
-    signer = ApkSigner(injected_apk, args.keystore)
+    signer = ApkSigner(injected_apk, args.keystore, args.signing_schemes)
     signed_apk = signer.sign(args.keystore_pass, args.key_alias, args.key_pass)
 
     if not signed_apk:
@@ -161,11 +161,12 @@ if __name__ == "__main__":
     apk_args.add_argument("-a", "--apk", dest="apk", help="APK to protect", required=True)
     apk_args.add_argument("-o", "--output", dest="output", help="Protected APK", required=False)
 
-    keystore_args = parser.add_argument_group("Keystore")
-    keystore_args.add_argument("-ks", "--keystore", dest="keystore", help="Keystore to use for signing", required=True)
-    keystore_args.add_argument("-ksp", "--keystore-pass", dest="keystore_pass", help="Keystore password", required=False) # Will be asked in CLI if not given
-    keystore_args.add_argument("-ka", "--key-alias", dest="key_alias", help="Key alias", required=False) # Will be asked in CLI if not given
-    keystore_args.add_argument("-kap", "--key-pass", dest="key_pass", help="Key password", required=False) # Will be asked in CLI if not given
+    signing_args = parser.add_argument_group("Signing")
+    signing_args.add_argument("-ks", "--keystore", dest="keystore", help="Keystore to use for signing", required=True)
+    signing_args.add_argument("-ksp", "--keystore-pass", dest="keystore_pass", help="Keystore password", required=False) # Will be asked in CLI if not given
+    signing_args.add_argument("-ka", "--key-alias", dest="key_alias", help="Key alias", required=False) # Will be asked in CLI if not given
+    signing_args.add_argument("-kap", "--key-pass", dest="key_pass", help="Key password", required=False) # Will be asked in CLI if not given
+    signing_args.add_argument("-sc", "--scheme", dest="signing_schemes", nargs="+", choices=ANDROID_SIGNING_SCHEMES, metavar="SCHEMES", help="Signing scheme(s) to use", required=False)
 
     dylib_args = parser.add_argument_group("Dylib")
     dylib_args.add_argument("-n", "--android-ndk", dest="android_ndk", help="Path to Android NDK", required=False) # If not specified we'll use env variable ANDROID_NDK_ROOT

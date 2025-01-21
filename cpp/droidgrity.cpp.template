@@ -10,18 +10,27 @@
 #define APK_SIG_BLOCK_MAGIC_LEN 16
 
 #define EOCD_SIGNATURE 0x06054b50
-#define FILE_HEADER_SIGNATURE 0x04034b50
+#define LOCAL_FILE_HEADER_SIGNATURE 0x04034b50
 #define CENTRAL_DIRECTORY_SIGNATURE 0x02014b50
 
 #define BUFFER_SIZE 8192
+#define EOCD_MIN_SIZE 22
+
+// Helper to read a little-endian 16-bit value from the buffer
+uint16_t readLE16(const void* data) {
+    const unsigned char *buffer = (const unsigned char *)data;
+    return buffer[0] | (buffer[1] << 8);
+}
 
 // Helper to read a little-endian 32-bit value from the buffer
-uint32_t readLE32(const unsigned char* buffer) {
+uint32_t readLE32(const void* data) {
+    const unsigned char *buffer = (const unsigned char *)data;
     return buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24);
 }
 
 // Helper to read a little-endian 64-bit value from the buffer
-uint64_t readLE64(const unsigned char* buffer) {
+uint64_t readLE64(const void* data) {
+    const unsigned char *buffer = (const unsigned char *)data;
     return ((uint64_t)buffer[0]) |
            ((uint64_t)buffer[1] << 8) |
            ((uint64_t)buffer[2] << 16) |
@@ -33,8 +42,9 @@ uint64_t readLE64(const unsigned char* buffer) {
 }
 
 // Read the last N bytes of the file to locate EOCD
-off_t findEOCD(int fd) {
+off_t findEOCDOffset(int fd) {
     char buffer[BUFFER_SIZE];
+
     off_t fileSize = my_lseek(fd, 0, SEEK_END);
     off_t offset = fileSize - BUFFER_SIZE;
     if (offset < 0) offset = 0;
@@ -42,7 +52,7 @@ off_t findEOCD(int fd) {
     my_lseek(fd, offset, SEEK_SET);
     ssize_t bytesRead = my_read(fd, buffer, BUFFER_SIZE);
 
-    for (int i = (int) bytesRead - 22; i >= 0; --i) {
+    for (int i = (int) bytesRead - EOCD_MIN_SIZE; i >= 0; --i) {
         if (*(uint32_t*)(buffer + i) == EOCD_SIGNATURE) {
             return offset + i;
         }
@@ -53,23 +63,31 @@ off_t findEOCD(int fd) {
 
 // Parse EOCD and get the central directory offset
 off_t getCentralDirectoryOffset(int fd, off_t eocdOffset) {
-    char eocdBuffer[22]; // EOCD minimum size
+    char eocdBuffer[EOCD_MIN_SIZE];
+    
     my_lseek(fd, eocdOffset, SEEK_SET);
-    my_read(fd, eocdBuffer, sizeof(eocdBuffer));
-    return *(off_t *)(eocdBuffer + 16); // Central Directory offset
+    my_read(fd, eocdBuffer, EOCD_MIN_SIZE);
+    
+    return (off_t) readLE32(eocdBuffer + 16); // Central Directory offset
 }
 
 // Extract Central Directory and find META-INF/*.RSA or META-INF/*.DSA
 int findCertificateFile(int fd, off_t centralDirOffset, char* certFileName, off_t* fileOffset, size_t* fileSize) {
+    LOGD("Trying to find certificate file from Central Directory...");
+
     my_lseek(fd, centralDirOffset, SEEK_SET);
     char buffer[46]; // Central Directory file header size
 
     while (my_read(fd, buffer, sizeof(buffer)) > 0) {
-        if (*(uint32_t*)buffer != CENTRAL_DIRECTORY_SIGNATURE) break;
+        uint32_t signature = readLE32(buffer);
+        if (signature != CENTRAL_DIRECTORY_SIGNATURE) {
+            LOGE("Central Directory signature mismatch");
+            break;
+        }
 
-        uint16_t fileNameLength = *(uint16_t*)(buffer + 28);
-        uint16_t extraFieldLength = *(uint16_t*)(buffer + 30);
-        uint16_t commentLength = *(uint16_t*)(buffer + 32);
+        uint16_t fileNameLength = readLE16(buffer + 28);
+        uint16_t extraFieldLength = readLE16(buffer + 30);
+        uint16_t commentLength = readLE16(buffer + 32);
 
         // Read file name
         char fileName[256];
@@ -80,8 +98,8 @@ int findCertificateFile(int fd, off_t centralDirOffset, char* certFileName, off_
 
         if (my_strstr(fileName, "META-INF/") && (my_strstr(fileName, ".RSA") || my_strstr(fileName, ".DSA"))) {
             my_strlcpy(certFileName, fileName, my_strlen(fileName));
-            *fileOffset = *(off_t*)(buffer + 42); // Local header offset
-            *fileSize = *(uint32_t*)(buffer + 24);   // Compressed size
+            *fileOffset = (off_t) readLE32(buffer + 42); // Local header offset
+            *fileSize = readLE32(buffer + 24); // Uncompressed size
             return 0; // Found
         }
 
@@ -93,17 +111,67 @@ int findCertificateFile(int fd, off_t centralDirOffset, char* certFileName, off_
 }
 
 // Extract the certificate file data
-int extractCertFile(int fd, off_t fileOffset, const size_t* fileSize, unsigned char* buffer) {
+int extractCertFile(int fd, off_t fileOffset, size_t* fileSize, unsigned char* data) {
+    LOGD("Trying to extract certificate file data...");
+    LOGD("File Offset: %ld", fileOffset);
+    LOGD("File Size: %zu", *fileSize);
+
     my_lseek(fd, fileOffset, SEEK_SET);
     char header[30]; // Local file header size
     my_read(fd, header, sizeof(header));
 
-    uint16_t nameLength = *(uint16_t*)(header + 26);
-    uint16_t extraLength = *(uint16_t*)(header + 28);
+    uint32_t signature = readLE32(header);
+    if (signature != LOCAL_FILE_HEADER_SIGNATURE) {
+        LOGE("Invalid Local File Header signature");
+        return -1;
+    }
+
+    uint32_t compressedSize = readLE32(header + 20);
+    uint32_t uncompressedSize = readLE32(header + 22);
+    uint16_t nameLength = readLE16(header + 26);
+    uint16_t extraLength = readLE16(header + 28);
+
+    LOGD("Compressed Data Size: %zu", compressedSize);
+    LOGD("Uncompressed Data Size: %zu", uncompressedSize);
+    LOGD("Certificate File Name Length: %u", nameLength);
+    LOGD("Certificate File Extra Length: %u", extraLength);
+
     my_lseek(fd, nameLength + extraLength, SEEK_CUR); // Skip to file data
 
-    ssize_t bytesRead = my_read(fd, buffer, *fileSize);
-    return (bytesRead == *fileSize) ? 0 : -1;
+    unsigned char * pkcs7RawData = (unsigned char *) malloc(sizeof(data));
+    ssize_t pkcs7RawDataSize = my_read(fd, pkcs7RawData, *fileSize);
+
+    if (pkcs7RawDataSize != *fileSize) {
+        LOGE("Failed to read certificate file, expected: %zu, got: %zd", *fileSize, pkcs7RawDataSize);
+        return -1;
+    }
+
+    // NOTA BENE : AT THAT POINT THE CERTIFICATE IS STILL COMPRESSED ! NEED TO FIND A WAY TO DECOMPRESS. Compression used is deflate for .RSA files it seems
+    // ALSO PUT THE CODE BELOW IN A PKCS7_HELPER FILE !
+    // All code could go to other files as well (zip_helper), readLE* => common, signingblock_helper...
+
+    LOGD("Extracting certificate from DER encoded PKCS#7 raw data");
+
+    const uint8_t certTag[] = {0x30, 0x82}; // DER-encoded certificate tag    
+    for (size_t i = 0; i < pkcs7RawDataSize - 2; i++) {
+        if (pkcs7RawData[i] == certTag[0] && pkcs7RawData[i + 1] == certTag[1]) {
+            
+            // Length of the certificate is encoded in the next two bytes
+            *fileSize = (pkcs7RawData[i + 2] << 8) | pkcs7RawData[i + 3];
+            
+            if (i + 4 + *fileSize <= pkcs7RawDataSize) {
+                data = (uint8_t *)&pkcs7RawData[i];
+                LOGD("Found cert data in DER encoded PKCS#7 raw data");
+                return 0;
+            }
+        } else {
+            LOGE("Raw data found is not DER encoded...");
+            return -1;
+        }
+    }
+
+    LOGE("Could not find cert data in DER encoded PKCS#7 raw data");
+    return -1;
 }
 
 int getCertDataFromJarSignature(int fd, off_t eocdOffset, size_t* certSize, unsigned char* certData) {
@@ -295,7 +363,7 @@ int verifyCertificateFromAPK(const char* apkPath, unsigned char* knownCertHash, 
     }
 
     // Locate EOCD
-    off_t eocdOffset = findEOCD(fd);
+    off_t eocdOffset = findEOCDOffset(fd);
     if (eocdOffset < 0) {
         LOGE("Failed to locate EOCD");
         my_close(fd);
@@ -322,6 +390,8 @@ int verifyCertificateFromAPK(const char* apkPath, unsigned char* knownCertHash, 
 
     // We're finished with reading the file we can close the file handler
     my_close(fd);
+
+    LOGD("Cert raw data : %s", certData);
 
     // Hash the certificate file with our custom sha256 implementation
     unsigned char certHash[SHA256_BYTES_SIZE];
