@@ -3,6 +3,9 @@
 - Finir debug hash cert quand signing scheme = v1
 - Finir debug hash cert quand signing scheme = v2 & arch = x86_64
 
+- Clean out the .cpp.template code by dividing it into smaller files (see notes in the template)
+- Use o-llvm to obfuscate the dylib
+
 - Fill README.md
 
 - Create a docker image
