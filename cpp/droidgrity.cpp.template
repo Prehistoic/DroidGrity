@@ -1,187 +1,13 @@
-#include <jni.h>
+#include "droidgrity.h"
 
-#include "mylibc.h"
-#include "sha256.h"
-#include "path_helper.h"
-#include "logging.h"
-
-#define APK_SIG_BLOCK_MAGIC "APK Sig Block 42"
-#define APK_SIG_V2_SCHEME_BLOCK_ID 0x7109871a
-#define APK_SIG_BLOCK_MAGIC_LEN 16
-
-#define EOCD_SIGNATURE 0x06054b50
-#define LOCAL_FILE_HEADER_SIGNATURE 0x04034b50
-#define CENTRAL_DIRECTORY_SIGNATURE 0x02014b50
-
-#define BUFFER_SIZE 8192
-#define EOCD_MIN_SIZE 22
-
-// Helper to read a little-endian 16-bit value from the buffer
-uint16_t readLE16(const void* data) {
-    const unsigned char *buffer = (const unsigned char *)data;
-    return buffer[0] | (buffer[1] << 8);
-}
-
-// Helper to read a little-endian 32-bit value from the buffer
-uint32_t readLE32(const void* data) {
-    const unsigned char *buffer = (const unsigned char *)data;
-    return buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24);
-}
-
-// Helper to read a little-endian 64-bit value from the buffer
-uint64_t readLE64(const void* data) {
-    const unsigned char *buffer = (const unsigned char *)data;
-    return ((uint64_t)buffer[0]) |
-           ((uint64_t)buffer[1] << 8) |
-           ((uint64_t)buffer[2] << 16) |
-           ((uint64_t)buffer[3] << 24) |
-           ((uint64_t)buffer[4] << 32) |
-           ((uint64_t)buffer[5] << 40) |
-           ((uint64_t)buffer[6] << 48) |
-           ((uint64_t)buffer[7] << 56);
-}
-
-// Read the last N bytes of the file to locate EOCD
-off_t findEOCDOffset(int fd) {
-    char buffer[BUFFER_SIZE];
-
-    off_t fileSize = my_lseek(fd, 0, SEEK_END);
-    off_t offset = fileSize - BUFFER_SIZE;
-    if (offset < 0) offset = 0;
-
-    my_lseek(fd, offset, SEEK_SET);
-    ssize_t bytesRead = my_read(fd, buffer, BUFFER_SIZE);
-
-    for (int i = (int) bytesRead - EOCD_MIN_SIZE; i >= 0; --i) {
-        if (*(uint32_t*)(buffer + i) == EOCD_SIGNATURE) {
-            return offset + i;
-        }
-    }
-
-    return -1; // EOCD not found
-}
-
-// Parse EOCD and get the central directory offset
-off_t getCentralDirectoryOffset(int fd, off_t eocdOffset) {
-    char eocdBuffer[EOCD_MIN_SIZE];
-    
-    my_lseek(fd, eocdOffset, SEEK_SET);
-    my_read(fd, eocdBuffer, EOCD_MIN_SIZE);
-    
-    return (off_t) readLE32(eocdBuffer + 16); // Central Directory offset
-}
-
-// Extract Central Directory and find META-INF/*.RSA or META-INF/*.DSA
-int findCertificateFile(int fd, off_t centralDirOffset, char* certFileName, off_t* fileOffset, size_t* fileSize) {
-    LOGD("Trying to find certificate file from Central Directory...");
-
-    my_lseek(fd, centralDirOffset, SEEK_SET);
-    char buffer[46]; // Central Directory file header size
-
-    while (my_read(fd, buffer, sizeof(buffer)) > 0) {
-        uint32_t signature = readLE32(buffer);
-        if (signature != CENTRAL_DIRECTORY_SIGNATURE) {
-            LOGE("Central Directory signature mismatch");
-            break;
-        }
-
-        uint16_t fileNameLength = readLE16(buffer + 28);
-        uint16_t extraFieldLength = readLE16(buffer + 30);
-        uint16_t commentLength = readLE16(buffer + 32);
-
-        // Read file name
-        char fileName[256];
-        my_read(fd, fileName, fileNameLength);
-        fileName[fileNameLength] = '\0';
-
-        LOGD("Filename found : %s", fileName);
-
-        if (my_strstr(fileName, "META-INF/") && (my_strstr(fileName, ".RSA") || my_strstr(fileName, ".DSA"))) {
-            my_strlcpy(certFileName, fileName, my_strlen(fileName));
-            *fileOffset = (off_t) readLE32(buffer + 42); // Local header offset
-            *fileSize = readLE32(buffer + 24); // Uncompressed size
-            return 0; // Found
-        }
-
-        // Skip extra fields and comments
-        my_lseek(fd, extraFieldLength + commentLength, SEEK_CUR);
-    }
-
-    return -1; // Not found
-}
-
-// Extract the certificate file data
-int extractCertFile(int fd, off_t fileOffset, size_t* fileSize, unsigned char* data) {
-    LOGD("Trying to extract certificate file data...");
-    LOGD("File Offset: %ld", fileOffset);
-    LOGD("File Size: %zu", *fileSize);
-
-    my_lseek(fd, fileOffset, SEEK_SET);
-    char header[30]; // Local file header size
-    my_read(fd, header, sizeof(header));
-
-    uint32_t signature = readLE32(header);
-    if (signature != LOCAL_FILE_HEADER_SIGNATURE) {
-        LOGE("Invalid Local File Header signature");
-        return -1;
-    }
-
-    uint32_t compressedSize = readLE32(header + 20);
-    uint32_t uncompressedSize = readLE32(header + 22);
-    uint16_t nameLength = readLE16(header + 26);
-    uint16_t extraLength = readLE16(header + 28);
-
-    LOGD("Compressed Data Size: %zu", compressedSize);
-    LOGD("Uncompressed Data Size: %zu", uncompressedSize);
-    LOGD("Certificate File Name Length: %u", nameLength);
-    LOGD("Certificate File Extra Length: %u", extraLength);
-
-    my_lseek(fd, nameLength + extraLength, SEEK_CUR); // Skip to file data
-
-    unsigned char * pkcs7RawData = (unsigned char *) malloc(sizeof(data));
-    ssize_t pkcs7RawDataSize = my_read(fd, pkcs7RawData, *fileSize);
-
-    if (pkcs7RawDataSize != *fileSize) {
-        LOGE("Failed to read certificate file, expected: %zu, got: %zd", *fileSize, pkcs7RawDataSize);
-        return -1;
-    }
-
-    // NOTA BENE : AT THAT POINT THE CERTIFICATE IS STILL COMPRESSED ! NEED TO FIND A WAY TO DECOMPRESS. Compression used is deflate for .RSA files it seems
-    // ALSO PUT THE CODE BELOW IN A PKCS7_HELPER FILE !
-    // All code could go to other files as well (zip_helper), readLE* => common, signingblock_helper...
-
-    LOGD("Extracting certificate from DER encoded PKCS#7 raw data");
-
-    const uint8_t certTag[] = {0x30, 0x82}; // DER-encoded certificate tag    
-    for (size_t i = 0; i < pkcs7RawDataSize - 2; i++) {
-        if (pkcs7RawData[i] == certTag[0] && pkcs7RawData[i + 1] == certTag[1]) {
-            
-            // Length of the certificate is encoded in the next two bytes
-            *fileSize = (pkcs7RawData[i + 2] << 8) | pkcs7RawData[i + 3];
-            
-            if (i + 4 + *fileSize <= pkcs7RawDataSize) {
-                data = (uint8_t *)&pkcs7RawData[i];
-                LOGD("Found cert data in DER encoded PKCS#7 raw data");
-                return 0;
-            }
-        } else {
-            LOGE("Raw data found is not DER encoded...");
-            return -1;
-        }
-    }
-
-    LOGE("Could not find cert data in DER encoded PKCS#7 raw data");
-    return -1;
-}
-
-int getCertDataFromJarSignature(int fd, off_t eocdOffset, size_t* certSize, unsigned char* certData) {
+int getCertDataFromJarSignature(int fd, off_t eocdOffset, size_t& certSize, unsigned char* certData) {
     // Get Central Directory offset
     off_t centralDirOffset = getCentralDirectoryOffset(fd, eocdOffset);
 
     // Find certificate file in META-INF
     char certFileName[256];
     off_t certFileOffset;
-    if (findCertificateFile(fd, centralDirOffset, certFileName, &certFileOffset, certSize) < 0) {
+    if (findCertificateFile(fd, centralDirOffset, certFileName, certFileOffset, certSize) < 0) {
         LOGE("Failed to locate META-INF/*.RSA or *.DSA file");
         return -1;
     }
@@ -195,164 +21,20 @@ int getCertDataFromJarSignature(int fd, off_t eocdOffset, size_t* certSize, unsi
     return 0;
 }
 
-// Locate APK Signing Block
-off_t locateAPKSigningBlock(int fd, off_t eocdOffset) {
-    // Central Directory offset
-    off_t centralDirOffset = getCentralDirectoryOffset(fd, eocdOffset);
-
-    // Check for APK Signing Block magic
-    unsigned char buffer[BUFFER_SIZE];
-    off_t searchOffset = centralDirOffset - BUFFER_SIZE;
-    if (searchOffset < 0) searchOffset = 0;
-
-    my_lseek(fd, searchOffset, SEEK_SET);
-    ssize_t bytesRead = my_read(fd, buffer, BUFFER_SIZE);
-
-    for (ssize_t i = bytesRead - APK_SIG_BLOCK_MAGIC_LEN; i >= 0; --i) {
-        if (my_memcmp(buffer + i, APK_SIG_BLOCK_MAGIC, APK_SIG_BLOCK_MAGIC_LEN) == 0) {
-            off_t blockOffset = searchOffset + i;
-
-            LOGD("Found APK Signing Block at offset = %ld", blockOffset);
-            return blockOffset;
-        }
-    }
-    return -1; // APK Signing Block not found
-}
-
-// Helper to extract the 1st certificate from the APK Signature Scheme v2 block
-int extractCertificateFromSignatureV2SchemeBlock(const unsigned char* signatureV2SchemeBlock, size_t* certSize, unsigned char* certData) {
-    const unsigned char* ptr = signatureV2SchemeBlock;
-
-    // Signing V2 scheme block format : https://source.android.com/docs/security/features/apksigning/v2#apk-signature-scheme-v2-block-format
-    // Signer sequence length (uint32)
-    //  - Signed data length (uint32)
-    //     - Digests length (uint32)
-    //       - Signature algorithm ID (uint32)
-    //       - Digest length (uint32)
-    //          - Digest
-    //     - Certificates length (uint32)
-    //       - Certificate length (uint32)
-    //          - Certificate
-    //     - Additional attributes length (uint32)
-    //       - ID (uint32)
-    //       - value (4 bytes)
-    // - Signatures length (uint32)
-    //     - Signature Algorithm ID (uint32)
-    //     - Signature length (uint32)
-    //       - Signature over signed data
-    // - Public key length (uint32)
-    //     - Public key
-
-    // Note that Signing V3 Scheme starts in the same way so this method will work as well
-    // Signing V4 Scheme exists as well and is very different but it requires having a V2 or V3 signature as well
-
-    uint32_t signerSequenceSize = readLE32(ptr);
-    ptr += 4;
-
-    LOGD("Signer Sequence size: %u bytes", signerSequenceSize);
-
-    uint32_t signedDataSize = readLE32(ptr);
-    ptr += 4;
-
-    LOGD("Signed data size: %u bytes", signedDataSize);
-
-    uint32_t digestsSize = readLE32(ptr);
-    ptr += 4;
-
-    LOGD("Digests size: %u bytes", digestsSize);
-
-    // Skipping digests
-    ptr += digestsSize;
-
-    uint32_t certificatesSize = readLE32(ptr);
-    ptr += 4;
-
-    LOGD("Certificates size: %u bytes", certificatesSize);
-
-    // We will only retrieve the first certificate data
-    uint32_t certificateSize = readLE32(ptr);
-    ptr += 4;
-
-    *certSize = certificateSize;
-    my_memcpy(certData, ptr, certificateSize);
-
-    return 0;
-}
-
-// Parse APK Signing Block
-int parseAPKSigningBlock(int fd, off_t blockOffset, size_t* certSize, unsigned char* certData) {
-    unsigned char sizeBuffer[8];
-    my_lseek(fd, blockOffset - 8, SEEK_SET); // Read the size field
-    my_read(fd, sizeBuffer, sizeof(sizeBuffer));
-    auto blockSize = (off_t) readLE64(sizeBuffer);
-
-    auto* blockData = (unsigned char*) malloc(blockSize);
-    if (!blockData) {
-        LOGE("Memory allocation failed");
+int getCertDataFromAPKSigningBlock(int fd, off_t eocdOffset, size_t& certSize, unsigned char* certData) {
+    off_t blockOffset = locateAPKSigningBlock(fd, eocdOffset);
+    if (blockOffset < 0) {
+        LOGE("Failed to find APK Signing Block");
         return -1;
     }
 
-    my_lseek(fd, blockOffset - blockSize, SEEK_SET);
-    my_read(fd, blockData, blockSize);
+    int success = parseAPKSigningBlock(fd, blockOffset, certSize, certData);
 
-    // Iterate over key-value pairs (simplified)
-    unsigned char* ptr = blockData;
-    const unsigned char* end = blockData + blockSize;
-
-    int success = -1;
-    while (ptr + 8 <= end) {
-        uint32_t id = readLE32(ptr);         // Read the ID
-        uint64_t size = readLE64(ptr + 4);  // Read the size
-
-        LOGD("Found block: ID=0x%x Size=%lld bytes", id, (long long)size);
-
-        ptr += 8;
-
-        if (id == APK_SIG_V2_SCHEME_BLOCK_ID) {
-            LOGD("Found APK v2+ Signature Scheme block");
-            success = extractCertificateFromSignatureV2SchemeBlock(ptr, certSize, certData);
-            break;
-        }
-
-        ptr += size;
-
-        // Ensure no overflow
-        if (ptr > end) {
-            LOGW("Block size exceeds payload boundary");
-            break;
-        }
+    if (success < 0) {
+        LOGE("Failed to parse APK Signing Block");
     }
-
-    free(blockData);
 
     return success;
-}
-
-int getCertDataFromAPKSigningBlock(int fd, off_t eocdOffset, size_t* certSize, unsigned char* certData) {
-    off_t blockOffset = locateAPKSigningBlock(fd, eocdOffset);
-    return parseAPKSigningBlock(fd, blockOffset, certSize, certData);
-}
-
-char* convertToHex(const unsigned char* hash, size_t length) {
-    // Each byte takes 2 hex digits + optional separators (e.g., ":" or space) + null terminator
-    size_t bufferSize = (length * 2) + 1; // +1 for null terminator
-    char* hexString = (char*) malloc(bufferSize);
-    if (!hexString) {
-        LOGE("Memory allocation failed");
-        return nullptr;
-    }
-
-    // Fill the buffer with hex representation. This is a bit dirty but allows us to avoid using any glibc function like sprintf
-    char* ptr = hexString;
-    for (size_t i = 0; i < length; i++) {
-        unsigned char byte = hash[i];
-        *ptr++ = "0123456789abcdef"[byte >> 4];  // High nibble
-        *ptr++ = "0123456789abcdef"[byte & 0x0F]; // Low nibble
-    }
-
-    // Null-terminate the string
-    *ptr = '\0';
-    return hexString;
 }
 
 int verifyCertificateFromAPK(const char* apkPath, unsigned char* knownCertHash, size_t hashLen) {
@@ -374,12 +56,12 @@ int verifyCertificateFromAPK(const char* apkPath, unsigned char* knownCertHash, 
     unsigned char certData[BUFFER_SIZE];
 
     // First we try to look for APK Signing Block (v2+)
-    int success = getCertDataFromAPKSigningBlock(fd, eocdOffset, &certSize, certData);
+    int success = getCertDataFromAPKSigningBlock(fd, eocdOffset, certSize, certData);
 
     // If we didn't find any APK Signing Block, we look for JAR Signature (v1)
     if (success < 0) {
         LOGW("Failed to find the certificates with method for v2+ signature. Trying with method for v1 signature...");
-        success = getCertDataFromJarSignature(fd, eocdOffset, &certSize, certData);
+        success = getCertDataFromJarSignature(fd, eocdOffset, certSize, certData);
     }
 
     if (success < 0) {
@@ -414,8 +96,7 @@ int verifyCertificateFromAPK(const char* apkPath, unsigned char* knownCertHash, 
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_@droidgrity.filler.appPackageName_withUnderscores@_DroidGrity_checkApkIntegrity(JNIEnv *env,
-                                                                jobject instance) {
+Java_@droidgrity.filler.appPackageName_withUnderscores@_DroidGrity_checkApkIntegrity(JNIEnv *env, jobject instance) {
     const char *apkPath = getApkPath("@droidgrity.filler.appPackageName_withDots@");
 
     if (apkPath == NULL) {

@@ -37,7 +37,7 @@ static char * getPathFromEntry(const char * line, const char * packageName) {
 
     int field = 0;
     char * token = my_strtok(copied_line, delim);
-    while (token != NULL) {
+    while (token != nullptr) {
         if (field == 5) { // The 6th field is the path
             my_strlcpy(path, token, PATH_SIZE - 1);
             path[PATH_SIZE - 1] = '\0';
@@ -53,25 +53,25 @@ static char * getPathFromEntry(const char * line, const char * packageName) {
             break;
         }
 
-        token = my_strtok(NULL, delim); // We have to pass NULL due to our custom strtok implementation !
+        token = my_strtok(nullptr, delim); // We have to pass NULL due to our custom strtok implementation !
         field++;
     }
 
-    return NULL;
+    return nullptr;
 }
 
 char * getApkPath(const char * packageName) {
     // Open the /proc/self directory
     int dir_fd = my_openat(AT_FDCWD, "/proc/self", O_RDONLY | O_DIRECTORY);
     if (dir_fd == -1) {
-        return NULL;
+        return nullptr;
     }
 
     // Open the maps file using openat
     int fd = my_openat(dir_fd, "maps", O_RDONLY);
     my_close(dir_fd); // Close directory file descriptor
     if (fd == -1) {
-        return NULL;
+        return nullptr;
     }
 
     char buffer[FD_BUFFER_SIZE];
@@ -113,5 +113,5 @@ char * getApkPath(const char * packageName) {
         return my_strdup(path);
     }
 
-    return NULL;
+    return nullptr;
 }

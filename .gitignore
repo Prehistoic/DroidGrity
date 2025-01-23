@@ -134,9 +134,7 @@ ENV/
 !**/test_resources/**/*
 
 # Filled templates
-**/*.cpp
-!cpp/mylibc.cpp
-!cpp/path_helper.cpp
+cpp/droidgrity.cpp
 **/*.smali
 
 # Build results

@@ -5,7 +5,7 @@
 #include <unistd.h> // For syscall
 #include <stdlib.h> // For malloc, free...
 #include <fcntl.h> // For O_RDONLY, O_DIRECTORY, AT_FDCWD
-#include <stddef.h> // For some types
+#include <sys/types.h> // For some types
 
 int my_openat(int dirfd, const char* path, int flags);
 

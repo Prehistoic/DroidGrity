@@ -25,8 +25,21 @@ add_library(
         SHARED
         
         droidgrity.cpp
-        mylibc.cpp
-        path_helper.cpp
+        src/mylibc.cpp
+        src/helpers/sha256_helper.cpp
+        src/helpers/path_helper.cpp
+        src/helpers/apksigningblock_helper.cpp
+        src/helpers/unzip_helper.cpp
+)
+
+target_include_directories(
+        ${CMAKE_PROJECT_NAME}
+
+        PRIVATE
+
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/include/utils
+        ${CMAKE_SOURCE_DIR}/include/helpers
 )
 
 target_link_libraries(
@@ -35,4 +48,5 @@ target_link_libraries(
         # List libraries link to the target library
         android
         log
+        z
 )

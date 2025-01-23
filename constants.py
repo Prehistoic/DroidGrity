@@ -21,7 +21,7 @@ SMALI_SRC_PATH = "smali"
 DYLIB_SMALI_TEMPLATE = os.path.join(SMALI_SRC_PATH, "DroidGrity.smali.template")
 
 # Other paths
-BUILD_DIR = "build"
+BUILD_DIR = "cpp/build"
 BUILD_DYLIB_NAME = f"lib{DYLIB_NAME}.so"
 TEMP_DIR = "temp"
 INJECTED_APK_DIR = "injected"
