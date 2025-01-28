@@ -1,15 +1,14 @@
 #ifndef UNZIP_HELPER_H
 #define UNZIP_HELPER_H
 
-#include <cstdio> // TO REMOVE !
-
 #include <stdio.h> // For SEEK_END, SEEK_CUR...
 #include <sys/types.h> // For some types...
-#include "zlib.h"
 
 #include "utils/common.h"
 #include "utils/logging.h"
 #include "mylibc.h"
+
+#include "inflate_helper.h"
 
 #define EOCD_SIGNATURE 0x06054b50
 #define LOCAL_FILE_HEADER_SIGNATURE 0x04034b50

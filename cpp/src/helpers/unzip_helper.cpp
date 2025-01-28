@@ -27,61 +27,10 @@ off_t getCentralDirectoryOffset(int fd, off_t eocdOffset) {
     my_lseek(fd, eocdOffset, SEEK_SET);
     my_read(fd, eocdBuffer, EOCD_MIN_SIZE);
     
-    return (off_t) readLE32(eocdBuffer + 16); // Central Directory offset
-}
+    off_t centralDirectoryOffset = (off_t) readLE32(eocdBuffer + 16); // Central Directory offset
+    LOGD("Central Directory Offset : %ld", centralDirectoryOffset);
 
-static unsigned char* inflate_data(const unsigned char* compressedData, size_t compressedSize, size_t decompressedSize) {
-    // Create a buffer to store the decompressed data.
-    unsigned char* decompressedData = new unsigned char[decompressedSize];
-
-    // Initialize the zlib inflate stream structure
-    z_stream strm;
-    strm.zalloc = Z_NULL;
-    strm.zfree = Z_NULL;
-    strm.opaque = Z_NULL;
-
-    int ret = inflateInit(&strm);
-    if (ret != Z_OK) {
-        LOGE("Failure in zlib.inflateInit: %d", ret);
-        delete[] decompressedData;
-        return nullptr;
-    }
-
-    // Set up the zlib stream with the compressed data
-    strm.avail_in = compressedSize;
-    strm.next_in = const_cast<unsigned char*>(compressedData);
-    strm.avail_out = decompressedSize;
-    strm.next_out = decompressedData;
-
-    // Debug: Log compressed data
-    const size_t chunkSize = 64; // Adjust the chunk size as needed
-    char buffer[compressedSize * 3 + 1];
-    size_t bufferIndex = 0;
-    for (size_t i = 0; i < compressedSize; ++i) {
-        bufferIndex += std::snprintf(buffer + bufferIndex, sizeof(buffer) - bufferIndex, "%02x ", compressedData[i] & 0xFF);
-
-        // If the buffer is full or we've reached the end of a chunk
-        if ((i + 1) % chunkSize == 0 || i == compressedSize - 1) {
-            buffer[bufferIndex] = '\0'; // Null-terminate the string
-            LOGD("%s", buffer); // Log the current chunk
-            bufferIndex = 0; // Reset the buffer index for the next chunk
-        }
-    }
-
-    // Perform the decompression
-    ret = inflate(&strm, Z_NO_FLUSH);
-    if (ret != Z_STREAM_END) {
-        LOGE("Failure in zlib.inflate: %d", ret);
-        inflateEnd(&strm);
-        delete[] decompressedData;
-        return nullptr;
-    }
-
-    // Clean up the zlib stream
-    inflateEnd(&strm);
-
-    // Return the decompressed data
-    return decompressedData;
+    return centralDirectoryOffset;
 }
 
 // Extract Central Directory and find META-INF/*.RSA or META-INF/*.DSA
@@ -107,14 +56,18 @@ int findCertificateFile(int fd, off_t centralDirOffset, char* certFileName, off_
         my_read(fd, fileName, fileNameLength);
         fileName[fileNameLength] = '\0';
 
-        // LOGD("Filename found : %s", fileName);
+        // LOGD("Central Directory entry found : %s", fileName);
 
         if (my_strstr(fileName, "META-INF/") && (my_strstr(fileName, ".RSA") || my_strstr(fileName, ".DSA"))) {
-            LOGD("Found certificate file : %s", fileName);
+            LOGD("Central Directory - Found certificate file : %s", fileName);
 
             my_strlcpy(certFileName, fileName, my_strlen(fileName));
             fileOffset = (off_t) readLE32(buffer + 42); // Local header offset
             fileSize = readLE32(buffer + 24); // decompressed size
+
+            LOGD("File Offset: %ld", fileOffset);
+            LOGD("File Size: %zu", fileSize);
+
             return 0; // Found
         }
 
@@ -128,8 +81,6 @@ int findCertificateFile(int fd, off_t centralDirOffset, char* certFileName, off_
 // Extract the certificate file data
 int extractCertFile(int fd, off_t fileOffset, size_t& fileSize, unsigned char* data) {
     LOGD("Trying to extract certificate file data...");
-    LOGD("File Offset: %ld", fileOffset);
-    LOGD("File Size: %zu", fileSize);
 
     my_lseek(fd, fileOffset, SEEK_SET);
     char header[30]; // Local file header size
@@ -153,19 +104,26 @@ int extractCertFile(int fd, off_t fileOffset, size_t& fileSize, unsigned char* d
         default:
             break;
     }
-    LOGD("Compression Method: %u => %s", compressionMethod, compressionMethodStr);
+    LOGD("Local File Header - Compression Method: %u => %s", compressionMethod, compressionMethodStr);
 
     size_t compressedSize = (size_t) readLE32(header + 18);
     size_t decompressedSize = (size_t) readLE32(header + 22);
     uint16_t fileNameLength = readLE16(header + 26);
     uint16_t extraLength = readLE16(header + 28);
 
-    LOGD("Compressed Data Size: %zu", compressedSize);
-    LOGD("Decompressed Data Size: %zu", decompressedSize);
-    LOGD("Certificate File Name Length: %u", fileNameLength);
-    LOGD("Certificate File Extra Length: %u", extraLength);
+    LOGD("Local File Header - Compressed Data Size: %zu", compressedSize);
+    LOGD("Local File Header - Decompressed Data Size: %zu", decompressedSize);
+    LOGD("Local File Header - File Name Length: %u", fileNameLength);
+    LOGD("Local File Header - File Extra Length: %u", extraLength);
 
-    my_lseek(fd, fileNameLength + extraLength, SEEK_CUR); // Skip to file data
+    // Confirming file name
+    char fileName[256];
+    my_read(fd, fileName, fileNameLength);
+    fileName[fileNameLength] = '\0';
+
+    LOGD("Filename: %s", fileName);
+
+    my_lseek(fd, extraLength, SEEK_CUR); // Skip to file data
 
     unsigned char * compressedPkcs7RawData = (unsigned char *) malloc(compressedSize);
     ssize_t compressedPkcs7RawDataSize = my_read(fd, compressedPkcs7RawData, (size_t) compressedSize);
@@ -177,8 +135,14 @@ int extractCertFile(int fd, off_t fileOffset, size_t& fileSize, unsigned char* d
     }
 
     LOGD("Inflating the compressed DER encoded PKCS#7 raw data");
-    size_t pkcs7RawDataSize = 0;
-    unsigned char * pkcs7RawData = inflate_data(compressedPkcs7RawData, compressedPkcs7RawDataSize, pkcs7RawDataSize);
+    unsigned char* pkcs7RawData = new unsigned char[decompressedSize];
+    size_t pkcs7RawDataSize = decompressedSize;
+    int ret = inflate(pkcs7RawData, &pkcs7RawDataSize, compressedPkcs7RawData, compressedPkcs7RawDataSize);
+
+    if (ret < 0) {
+        LOGE("Inflating data failed with error %d", ret);
+        return -1;
+    }
 
     if (pkcs7RawDataSize != decompressedSize) {
         LOGE("Inflated file size (%zu) doesn't match expected size (%zu)", pkcs7RawDataSize, decompressedSize);

@@ -30,6 +30,7 @@ add_library(
         src/helpers/path_helper.cpp
         src/helpers/apksigningblock_helper.cpp
         src/helpers/unzip_helper.cpp
+        src/helpers/inflate_helper.cpp
 )
 
 target_include_directories(
