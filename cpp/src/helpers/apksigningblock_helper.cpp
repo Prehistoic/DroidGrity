@@ -90,9 +90,11 @@ int parseAPKSigningBlock(int fd, off_t blockOffset, size_t& certSize, unsigned c
     unsigned char sizeBuffer[8];
     my_lseek(fd, blockOffset - 8, SEEK_SET); // Read the size field
     my_read(fd, sizeBuffer, sizeof(sizeBuffer));
-    auto blockSize = (off_t) readLE64(sizeBuffer);
+    size_t blockSize = (size_t) readLE64(sizeBuffer);
 
-    auto* blockData = (unsigned char*) malloc(blockSize);
+    LOGD("APK Signing Block Size = %zu bytes", blockSize);
+
+    unsigned char* blockData = (unsigned char*) malloc(blockSize);
     if (!blockData) {
         LOGE("Memory allocation for blockData failed");
         return -1;
