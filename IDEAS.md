@@ -1,6 +1,6 @@
 # TO DO
 
-- Finir debug hash cert quand signing scheme = v1
+- Finir debug hash cert quand signing scheme = v1 => remains to get the signature from the PKCS7 Signed DER encoded certificate in memory ! Need to find the same digests than apksigner !
 - Finir debug hash cert quand signing scheme = v2 & arch = x86_64
 
 - Clean out the .cpp.template code by dividing it into smaller files (see notes in the template)

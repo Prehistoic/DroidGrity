@@ -31,6 +31,7 @@ add_library(
         src/helpers/apksigningblock_helper.cpp
         src/helpers/unzip_helper.cpp
         src/helpers/inflate_helper.cpp
+        src/helpers/pkcs7_helper.cpp
 )
 
 target_include_directories(

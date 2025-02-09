@@ -79,7 +79,7 @@ int findCertificateFile(int fd, off_t centralDirOffset, char* certFileName, off_
 }
 
 // Extract the certificate file data
-int extractCertFile(int fd, off_t fileOffset, size_t& fileSize, unsigned char* data) {
+int extractCertFile(int fd, off_t fileOffset, size_t& certSize, unsigned char* certData) {
     LOGD("Trying to extract certificate file data...");
 
     my_lseek(fd, fileOffset, SEEK_SET);
@@ -151,24 +151,13 @@ int extractCertFile(int fd, off_t fileOffset, size_t& fileSize, unsigned char* d
 
     LOGD("Extracting certificate from DER encoded PKCS#7 raw data");
 
-    const uint8_t certTag[] = {0x30, 0x82}; // DER-encoded certificate tag    
-    for (size_t i = 0; i < pkcs7RawDataSize - 2; i++) {
-        if (pkcs7RawData[i] == certTag[0] && pkcs7RawData[i + 1] == certTag[1]) {
-            
-            // Length of the certificate is encoded in the next two bytes
-            fileSize = (pkcs7RawData[i + 2] << 8) | pkcs7RawData[i + 3];
-            
-            if (i + 4 + fileSize <= pkcs7RawDataSize) {
-                data = (uint8_t *)&pkcs7RawData[i];
-                LOGD("Found cert data in DER encoded PKCS#7 raw data");
-                return 0;
-            }
-        } else {
-            LOGE("Raw data found is not DER encoded...");
-            return -1;
-        }
-    }
+    extract_cert_from_pkcs7(pkcs7RawData, pkcs7RawDataSize, &certSize, certData);
 
-    LOGE("Could not find cert data in DER encoded PKCS#7 raw data");
-    return -1;
+    if (certData == NULL) {
+        LOGE("Could not find cert data in DER encoded PKCS#7 raw data");
+        return -1;
+    }
+    
+    LOGD("Found cert data in DER encoded PKCS#7 raw data");
+    return 0;
 }

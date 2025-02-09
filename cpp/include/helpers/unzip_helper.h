@@ -9,6 +9,7 @@
 #include "mylibc.h"
 
 #include "inflate_helper.h"
+#include "pkcs7_helper.h"
 
 #define EOCD_SIGNATURE 0x06054b50
 #define LOCAL_FILE_HEADER_SIGNATURE 0x04034b50

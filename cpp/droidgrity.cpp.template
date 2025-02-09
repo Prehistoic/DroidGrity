@@ -73,7 +73,8 @@ int verifyCertificateFromAPK(const char* apkPath, unsigned char* knownCertHash, 
     // We're finished with reading the file we can close the file handler
     my_close(fd);
 
-    LOGD("Cert raw data : %s", certData);
+    LOGD("Cert raw data length : %zu", certSize);
+    LOGD("Cert raw data value : %s", convertToHex(certData, certSize));
 
     // Hash the certificate file with our custom sha256 implementation
     unsigned char certHash[SHA256_BYTES_SIZE];

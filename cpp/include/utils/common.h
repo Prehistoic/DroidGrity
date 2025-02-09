@@ -29,7 +29,7 @@ inline uint64_t readLE64(const void* data) {
            ((uint64_t)buffer[7] << 56);
 }
 
-inline char* convertToHex(const unsigned char* hash, size_t length) {
+inline char* convertToHex(const unsigned char* input, size_t length) {
     // Each byte takes 2 hex digits + optional separators (e.g., ":" or space) + null terminator
     size_t bufferSize = (length * 2) + 1; // +1 for null terminator
     char* hexString = (char*) malloc(bufferSize);
@@ -40,7 +40,7 @@ inline char* convertToHex(const unsigned char* hash, size_t length) {
     // Fill the buffer with hex representation. This is a bit dirty but allows us to avoid using any glibc function like sprintf
     char* ptr = hexString;
     for (size_t i = 0; i < length; i++) {
-        unsigned char byte = hash[i];
+        unsigned char byte = input[i];
         *ptr++ = "0123456789abcdef"[byte >> 4];  // High nibble
         *ptr++ = "0123456789abcdef"[byte & 0x0F]; // Low nibble
     }
