@@ -19,7 +19,17 @@
 ## Prerequisites 🖥️
 
 - 🐍 Python 3.x
-- ☕ Java Development Kit (JDK)
+- ☕ Java Development Kit (JDK) > 11
+- 🔑 Keystore containing the Application Signing key used to sign the original APK
+- 🔧 [APKtool](https://github.com/iBotPeaches/Apktool)
+- 🔧 [Android SDK Build Tools](https://developer.android.com/tools?hl=fr#tools-build) *for apksigner & zipalign*
+- 🔧 [Android SDK Platform Tools](https://developer.android.com/tools?hl=fr#tools-platform) *for adb*
+- 🔧 [cmake](https://cmake.org/)
+- 🔨 [Android NDK](https://developer.android.com/ndk/downloads?hl=fr)
+
+> All 🔧 tools must be in PATH
+>
+> Path to 🔨 Android NDK can either be passed via a CLI parameter or with the **ANDROID_NDK_ROOT** ENV variable
 
 ## Installation 🚀
 
@@ -65,6 +75,41 @@ Others:
     -i, --install                           Run ADB install
     -nc, --do-not-clean                     Do not clean temporary directories (for debugging purposes...)
 ```
+
+# Examples
+
+- **Basic usage**
+
+```bash
+python droidgrity.py -a APK_TO_PROTECT -n PATH_TO_ANDROID_NDK -ks KEYSTORE
+```
+
+- **With keystore authentication**
+
+```bash
+python droidgrity.py -a APK_TO_PROTECT -n PATH_TO_ANDROID_NDK -ks KEYSTORE -ksp KEYSTORE_PASSWORD -ka KEY_ALIAS -kap KEY_ALIAS_PASSWORD
+```
+
+- **Auto install to device**
+
+```bash
+python droidgrity.py -a APK_TO_PROTECT -ks KEYSTORE -n PATH_TO_ANDROID_NDK --install
+```
+
+## Known pitfalls
+
+- Just patching the application with APKTool by removing the few lines used to call the integrity check JNI method
+    - Can be made more difficult to do by using obfuscation to make it less obvious which lines should be removed
+    - Even better use a packer so that patching would require patching an encrypted dex which will involve to fully reverse the packing mechanism
+
+- Frida can be used to hook native methods and replace them so basically just have to replace the integrity check JNI method with a log
+    - Implement additional anti-frida/hooking tools checks into the application
+    - Obfuscating the native code to make it more difficult to know which native method to hook
+
+## Possible further enhancements
+
+- Allowing the user to define a handler in its code rather than crashing the application by default
+- Use [o-llvm](https://github.com/obfuscator-llvm/obfuscator/wiki) to obfuscate the dylib
 
 ## License
 
