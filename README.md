@@ -39,7 +39,7 @@
 ## How to use 🏃‍♂️
 
 ```
-usage: DroidGrity [-h] [-v LOG_LEVEL] -a APK [-o OUTPUT] -ks KEYSTORE [-ksp KEYSTORE_PASS] [-ka KEY_ALIAS] [-kap KEY_PASS] [-sc SCHEMES [SCHEMES ...]] [-n ANDROID_NDK] [-ta ABIs [ABIs ...]] [-bt {Debug,Release}] [-i] [-nc]
+usage: python droidgrity.py [-h] [-v LOG_LEVEL] -a APK [-o OUTPUT] -ks KEYSTORE [-ksp KEYSTORE_PASS] [-ka KEY_ALIAS] [-kap KEY_PASS] [-sc SCHEMES [SCHEMES ...]] [-n ANDROID_NDK] [-ta ABIs [ABIs ...]] [-bt {Debug,Release}] [-i] [-nc]
 
 options:
     -h, --help                              show this help message and exit
