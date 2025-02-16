@@ -38,6 +38,34 @@
 
 ## How to use 🏃‍♂️
 
+```
+usage: DroidGrity [-h] [-v LOG_LEVEL] -a APK [-o OUTPUT] -ks KEYSTORE [-ksp KEYSTORE_PASS] [-ka KEY_ALIAS] [-kap KEY_PASS] [-sc SCHEMES [SCHEMES ...]] [-n ANDROID_NDK] [-ta ABIs [ABIs ...]] [-bt {Debug,Release}] [-i] [-nc]
+
+options:
+    -h, --help                              show this help message and exit
+    -v, --log-level LOG_LEVEL               Logging level
+
+APK:
+    -a, --apk APK                           APK to protect
+    -o, --output OUTPUT                     Protected APK
+
+Signing:
+    -ks, --keystore KEYSTORE                Keystore to use for signing
+    -ksp, --keystore-pass KEYSTORE_PASS     Keystore password
+    -ka, --key-alias KEY_ALIAS              Key alias
+    -kap, --key-pass KEY_PASS               Key password
+    -sc, --scheme SCHEMES [SCHEMES ...]     Signing scheme(s) to use
+
+Dylib:
+    -n, --android-ndk ANDROID_NDK           Path to Android NDK
+    -ta, --target-abi ABIs [ABIs ...]       Android ABI(s) to target
+    -bt, --build-type {Debug,Release}       Build type (mainly to enable/disable android logs)
+
+Others:
+    -i, --install                           Run ADB install
+    -nc, --do-not-clean                     Do not clean temporary directories (for debugging purposes...)
+```
+
 ## License
 
 This project is under BSD 3-Clause License. See [LICENSE](./LICENSE.md) for more details. 
