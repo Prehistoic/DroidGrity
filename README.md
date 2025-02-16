@@ -29,7 +29,7 @@
 
 > All 🔧 tools must be in PATH
 >
-> Path to 🔨 Android NDK can either be passed via a CLI parameter or with the **ANDROID_NDK_ROOT** ENV variable
+> Path to 🔨 Android NDK can either be passed via a CLI parameter or with the *ANDROID_NDK_ROOT* ENV variable
 
 ## Installation 🚀
 
