@@ -1,11 +1,3 @@
-<!-- CSS --> 
-blockquote {
-  background-color: ##FAD5D3;
-  border-left: 5px solid red;
-}
-
-<!-- Content -->
-
 # DroidGrity 🛡️
 
 **DroidGrity** is a tool aiming at protecting APK files against unauthorized tampering. This ensures the Android application can't be cloned and modified to add malicious code or to disable security features.
