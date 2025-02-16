@@ -1,21 +1,14 @@
 # TO DO
 
-- Finir debug hash cert quand signing scheme = v1 => remains to get the signature from the PKCS7 Signed DER encoded certificate in memory ! Need to find the same digests than apksigner !
 - Finir debug hash cert quand signing scheme = v2 & arch = x86_64
-
-- Clean out the .cpp.template code by dividing it into smaller files (see notes in the template)
-- Use o-llvm to obfuscate the dylib
-
 - Fill README.md
-
-- Create a docker image
 
 - Run tests ! (different APKs, different arch...)
 
 # Possible further enhancements
 
-- Make it so the user can define a handler in its code rather than crashing the application. Maybe you could also just start the dylib code with JNI_OnLoad
-- Use o-llvm to obfuscate your library when building it ?
+- Allowing the user to define a handler in its code rather than crashing the application
+- Use o-llvm to obfuscate the dylib
 
 # Known pitfalls
 
