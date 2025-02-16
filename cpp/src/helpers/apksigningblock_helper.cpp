@@ -110,9 +110,9 @@ int parseAPKSigningBlock(int fd, off_t blockOffset, size_t& certSize, unsigned c
     int success = -1;
     while (ptr + 8 <= end) {
         uint32_t id = readLE32(ptr);         // Read the ID
-        uint64_t size = readLE64(ptr + 4);  // Read the size
+        uint64_t value = readLE64(ptr + 4);  // Read the value
 
-        LOGD("Found block: ID=0x%x Size=%lld bytes", id, (long long)size);
+        LOGD("Found block: ID=0x%x Value=%lld bytes", id, (long long)value);
 
         ptr += 8;
 
@@ -121,8 +121,6 @@ int parseAPKSigningBlock(int fd, off_t blockOffset, size_t& certSize, unsigned c
             success = extractCertificateFromSignatureV2SchemeBlock(ptr, certSize, certData);
             break;
         }
-
-        ptr += size;
 
         // Ensure no overflow
         if (ptr > end) {

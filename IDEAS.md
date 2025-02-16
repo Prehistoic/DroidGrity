@@ -1,8 +1,6 @@
 # TO DO
 
-- Finir debug hash cert quand signing scheme = v2 & arch = x86_64
 - Fill README.md
-
 - Run tests ! (different APKs, different arch...)
 
 # Possible further enhancements
