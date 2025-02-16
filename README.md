@@ -6,7 +6,7 @@
 >
 > **DroidGrity** was created **for educational purposes only**. This project should **not** be used in production applications or in any context requiring reliable security. No guarantees are provided regarding the effectiveness of this software against real-world attacks. 
 > 
-> To securely protect your Android applications, it is highly recommended to use **professionally developed solutions that have been validated by third-party security audits**.
+> To securely protect your Android applications, it is highly recommended to use **commercial solutions that have been validated by third-party security audits**.
 > 
 > Using **DroidGrity** is at your own risk. The author of this project cannot be held responsible for any consequences arising from its use.  
 
