@@ -113,7 +113,7 @@ python droidgrity.py -a APK_TO_PROTECT -ks KEYSTORE -n PATH_TO_ANDROID_NDK --ins
 
 ## License
 
-This project is under BSD 3-Clause License. See [LICENSE](./LICENSE.md) for more details. 
+This project is under BSD-3-Clause License. See [LICENSE](./LICENSE.md) for more details. 
 
 
 

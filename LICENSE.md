@@ -1,4 +1,4 @@
-BSD 3-Clause License
+BSD-3-Clause License
 
 Copyright (c) 2025 Matthieu LACOTE lacotematthieu@gmail.com
 All rights reserved.
