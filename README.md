@@ -98,18 +98,18 @@ python droidgrity.py -a APK_TO_PROTECT -ks KEYSTORE -n PATH_TO_ANDROID_NDK --ins
 
 ## Known pitfalls
 
-- Just patching the application with APKTool by removing the few lines used to call the integrity check JNI method
+- Protection can be bypassed by using Apktool and removing the few smali lines used to invoke the integrity check JNI method
     - Can be made more difficult to do by using obfuscation to make it less obvious which lines should be removed
-    - Even better use a packer so that patching would require patching an encrypted dex which will involve to fully reverse the packing mechanism
+    - Even better, using a packer loaded an encrypted dex => Patching would require to fully reverse the packing mechanism first
 
-- Frida can be used to hook native methods and replace them so basically just have to replace the integrity check JNI method with a log
+- Protection can be bypassed by leveraging Frida since it can be used to hook native methods. So basically a hacker just has to override the integrity check JNI method with a log
     - Implement additional anti-frida/hooking tools checks into the application
     - Obfuscating the native code to make it more difficult to know which native method to hook
 
-## Possible further enhancements
+## Ideas for further enhancements
 
 - Allowing the user to define a handler in its code rather than crashing the application by default
-- Use [o-llvm](https://github.com/obfuscator-llvm/obfuscator/wiki) to obfuscate the dylib
+- Use [o-llvm](https://github.com/obfuscator-llvm/obfuscator/wiki) to obfuscate the native code
 
 ## License
 
