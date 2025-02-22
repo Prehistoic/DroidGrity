@@ -101,7 +101,7 @@ def droidgrity(args):
 
     # Then we inject each libdroidgrity.so into the provided APK and we rebuild a new one
     injector = DylibInjector(args.apk)
-    injected_apk = injector.inject(activities, main_activity, filled_smali_template)
+    injected_apk = injector.inject(activities, package_name.replace(".", "/"), filled_smali_template)
 
     if not injected_apk:
         logger.error("Failed to inject dylib into APK. Exiting...")

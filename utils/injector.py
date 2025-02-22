@@ -13,7 +13,7 @@ class DylibInjector:
         
         self.apk = apk_path
 
-    def inject(self, activities: list[str], main_activity: str, smali_file: str):
+    def inject(self, activities: list[str], smali_file_dir: str, smali_file: str):
         self.logger.info(f"Attempting to inject DroidGrity.smali and loading dylibs in all activities")
 
         # First we verify that apktool is in the PATH
@@ -65,8 +65,7 @@ class DylibInjector:
                 f.writelines(apktool_conf)
             
             # Step 3 : Insert DroidGrity.smali
-            main_activity_package_name = "/".join(main_activity.split("/")[:-1])
-            dst_dir = os.path.join(TEMP_DIR, "smali", *(main_activity_package_name.split("/")))
+            dst_dir = os.path.join(TEMP_DIR, "smali", *(smali_file_dir.split("/")))
             dst_file = os.path.join(dst_dir, os.path.basename(smali_file))
             self.logger.info(f"Copying {smali_file} to {dst_file}")
             os.makedirs(dst_dir, exist_ok=True)
@@ -109,8 +108,8 @@ class DylibInjector:
                         line = f"    .locals 1" if register_count < 1 else line
                     elif in_on_create and "return-void" in line:
                         # Basically we just add some code that will invoke the isApkTampered method from the DroidGrity.smali file we injected, before the end on the onCreate method
-                        new_smali_code.append(f"    sget-object v0, L{main_activity_package_name}/DroidGrity;->INSTANCE:L{main_activity_package_name}/DroidGrity;" + "\n\n")
-                        new_smali_code.append(f"    invoke-virtual {{v0}}, L{main_activity_package_name}/DroidGrity;->checkApkIntegrity()V" + "\n\n")
+                        new_smali_code.append(f"    sget-object v0, L{smali_file_dir}/DroidGrity;->INSTANCE:L{smali_file_dir}/DroidGrity;" + "\n\n")
+                        new_smali_code.append(f"    invoke-virtual {{v0}}, L{smali_file_dir}/DroidGrity;->checkApkIntegrity()V" + "\n\n")
                         in_on_create = False
                     
                     # We add the original (or updated line) and go to the next line
