@@ -76,7 +76,7 @@ Others:
     -nc, --do-not-clean                     Do not clean temporary directories (for debugging purposes...)
 ```
 
-# Examples
+### Examples
 
 - **Basic usage**
 
@@ -96,7 +96,7 @@ python droidgrity.py -a APK_TO_PROTECT -n PATH_TO_ANDROID_NDK -ks KEYSTORE -ksp 
 python droidgrity.py -a APK_TO_PROTECT -ks KEYSTORE -n PATH_TO_ANDROID_NDK --install
 ```
 
-## Known pitfalls
+## Known pitfalls ⚠️
 
 - Protection can be bypassed by using Apktool and removing the few smali lines used to invoke the integrity check JNI method
     - Can be made more difficult to do by using obfuscation to make it less obvious which lines should be removed
@@ -106,12 +106,12 @@ python droidgrity.py -a APK_TO_PROTECT -ks KEYSTORE -n PATH_TO_ANDROID_NDK --ins
     - Implement additional anti-frida/hooking tools checks into the application
     - Obfuscating the native code to make it more difficult to know which native method to hook
 
-## Ideas for further enhancements
+## Ideas for further enhancements 🚧
 
 - Allowing the user to define a handler in its code rather than crashing the application by default
 - Use [o-llvm](https://github.com/obfuscator-llvm/obfuscator/wiki) to obfuscate the native code
 
-## License
+## License 📃
 
 This project is under BSD-3-Clause License. See [LICENSE](./LICENSE.md) for more details. 
 
