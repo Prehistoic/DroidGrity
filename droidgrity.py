@@ -135,6 +135,12 @@ def droidgrity(args):
 
     # We also clean the temporary repositories if everything went good
     if not args.do_not_clean:
+        files_to_clean = [filled_cpp_template, filled_smali_template]
+        logger.info(f"Cleaning following files : {' - '.join(files_to_clean)}")
+        for file in files_to_clean:
+            if os.path.exists(file):
+                os.remove(file)
+
         directories_to_clean = [BUILD_DIR, TEMP_DIR, INJECTED_APK_DIR]
         logger.info(f"Cleaning following repositories : {' - '.join(directories_to_clean)}")
         for directory in directories_to_clean:
