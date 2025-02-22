@@ -31,7 +31,7 @@ class DylibInjector:
             # Step 1 : Decompile APK
             self.logger.info(f"Decompiling APK {self.apk} into {TEMP_DIR}...")
             decompile_cmd = f"apktool d {self.apk} -o {TEMP_DIR} -f"
-            subprocess.run(decompile_cmd, shell=True, check=True, stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, text=True)
+            subprocess.run(decompile_cmd, shell=True, check=True)
             self.logger.info("Decompiled APK successfully")
 
             # Step 2 : Add the dylibs to the APK
@@ -66,18 +66,32 @@ class DylibInjector:
             
             # Step 3 : Insert DroidGrity.smali
             main_activity_package_name = "/".join(main_activity.split("/")[:-1])
-            dst_file = os.path.join(TEMP_DIR, "smali", *(main_activity_package_name.split("/")), os.path.basename(smali_file))
+            dst_dir = os.path.join(TEMP_DIR, "smali", *(main_activity_package_name.split("/")))
+            dst_file = os.path.join(dst_dir, os.path.basename(smali_file))
             self.logger.info(f"Copying {smali_file} to {dst_file}")
+            os.makedirs(dst_dir, exist_ok=True)
             shutil.copy(smali_file, dst_file)
                 
             # Step 4 : Modify all activities smali files to load and use the dylibs
+            smali_directories = [dir for dir in os.listdir(TEMP_DIR) if "smali" in dir]
+            self.logger.debug(f"Smali directories = {', '.join(smali_directories)}")
+
             for target_activity in activities:
                 self.logger.info(f"Injecting into {target_activity}")
 
                 target_activity_package_name = "/".join(target_activity.split("/")[:-1])
                 target_activity_name = target_activity.split("/")[-1]
+                
+                for smali_dir in smali_directories:
+                    target_activity_smali = os.path.join(TEMP_DIR, smali_dir, *(target_activity_package_name.split("/")), target_activity_name + ".smali")
+                    if os.path.exists(target_activity_smali):
+                        self.logger.debug(f"{target_activity_smali} exists, ready to inject...")
+                        break
+                    
+                if not os.path.exists(target_activity_smali):
+                    self.logger.warning(f"{target_activity_smali} does not exist, skipping...")
+                    continue
 
-                target_activity_smali = os.path.join(TEMP_DIR, "smali", *(target_activity_package_name.split("/")), target_activity_name + ".smali")
                 with open(target_activity_smali, "r") as f:
                     smali_code = f.readlines()
                 
