@@ -30,7 +30,7 @@ class DylibInjector:
 
             # Step 1 : Decompile APK
             self.logger.info(f"Decompiling APK {self.apk} into {TEMP_DIR}...")
-            decompile_cmd = f"apktool d {self.apk} -o {TEMP_DIR} -f"
+            decompile_cmd = f"apktool d {self.apk} -o {TEMP_DIR} -f --no-res --no-assets"
             subprocess.run(decompile_cmd, shell=True, check=True)
             self.logger.info("Decompiled APK successfully")
 
