@@ -58,7 +58,11 @@ def droidgrity(args):
         logger.info(f"APK - Activities = {', '.join(activities)}")
     
     # Then we compute the SHA256 hash of the certificate in our keystore
-    keystore = Keystore(args.keystore, args.keystore_pass)
+    keystore = Keystore(args.keystore)
+    if not keystore.load(args.keystore_pass):
+        logger.error("Failed to load keystore. Exiting...")
+        sys.exit(-1)
+        
     certificate_hash = keystore.get_certificate_hash()
     if not certificate_hash:
         logger.error("Failed to retrieve certificate hash. Exiting...")
