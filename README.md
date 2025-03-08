@@ -20,7 +20,7 @@
 
 - 🐍 Python 3.x
 - ☕ Java Development Kit (JDK) > 11
-- 🔑 Keystore containing the Application Signing key used to sign the original APK
+- 🔑 Keystore (PKCS12 format)
 - 🔧 [Apktool](https://github.com/iBotPeaches/Apktool)
 - 🔧 [Android SDK Build Tools](https://developer.android.com/tools?hl=fr#tools-build) *for apksigner & zipalign*
 - 🔧 [Android SDK Platform Tools](https://developer.android.com/tools?hl=fr#tools-platform) *for adb*
