@@ -108,6 +108,7 @@ python droidgrity.py -a APK_TO_PROTECT -ks KEYSTORE -n PATH_TO_ANDROID_NDK --ins
 
 ## Ideas for further enhancements 🚧
 
+- Improving keystore loading to support several keystore format (currently PKCS12 only)
 - Allowing the user to define a handler in its code rather than crashing the application by default
 - Use [o-llvm](https://github.com/obfuscator-llvm/obfuscator/wiki) to obfuscate the native code
 

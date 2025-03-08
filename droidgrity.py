@@ -1,11 +1,13 @@
 import argparse
 import logging
 import shutil
+import getpass
 import sys
 import os
 
 from constants import ANDROID_ABIS, ANDROID_SIGNING_SCHEMES, LOG_LEVELS_MAPPING, DYLIB_SRC_PATH, DYLIB_CPP_TEMPLATE, DYLIB_SMALI_TEMPLATE, BUILD_DIR, INJECTED_APK_DIR, TEMP_DIR
 from utils.apk import APKUtils
+from utils.keystore import Keystore
 from utils.filler import TemplateFiller
 from utils.builder import CMakeBuilder
 from utils.injector import DylibInjector
@@ -24,7 +26,7 @@ def droidgrity(args):
 
     print_banner()
 
-    # First we need to analyze the APK to retrieve its main package name + its signing certificate sha256 hash to fill droidgrity.cpp.template
+    # First we need to analyze the APK to retrieve necessary information
     apk = APKUtils(args.apk)
     
     package_name = apk.get_package_name()
@@ -33,13 +35,6 @@ def droidgrity(args):
         sys.exit(-1)
     else:
         logger.info(f"APK - Package name = {package_name}")
-
-    certificate_hash = apk.get_certificate_hash()
-    if not certificate_hash:
-        logger.error("Failed to retrieve certificate hash. Exiting...")
-        sys.exit(-1)
-    else:
-        logger.info(f"APK - Certificate hash = {certificate_hash}")
 
     min_sdk = apk.get_min_sdk()
     if not min_sdk:
@@ -62,12 +57,21 @@ def droidgrity(args):
     else:
         logger.info(f"APK - Activities = {', '.join(activities)}")
     
+    # Then we compute the SHA256 hash of the certificate in our keystore
+    keystore = Keystore(args.keystore, args.keystore_pass)
+    certificate_hash = keystore.get_certificate_hash()
+    if not certificate_hash:
+        logger.error("Failed to retrieve certificate hash. Exiting...")
+        sys.exit(-1)
+    else:
+        logger.info(f"Keystore - Certificate hash = {certificate_hash}")
+
     # Then we fill the different templates with the retrieved informations
     cpp_template_filler = TemplateFiller(DYLIB_CPP_TEMPLATE)
     data = {
         "appPackageName_withDots": package_name,
         "appPackageName_withUnderscores": package_name.replace(".", "_"),
-        "knownCertHash": ", ".join(f"0x{part.lower()}" for part in certificate_hash.split())
+        "knownCertHash": ", ".join(f"0x{chunk}" for chunk in [certificate_hash[i:i+2] for i in range(0, len(certificate_hash), 2)])
     }
     filled_cpp_template = cpp_template_filler.fill(data)
 
@@ -169,9 +173,9 @@ if __name__ == "__main__":
 
     signing_args = parser.add_argument_group("Signing")
     signing_args.add_argument("-ks", "--keystore", dest="keystore", help="Keystore to use for signing", required=True)
-    signing_args.add_argument("-ksp", "--keystore-pass", dest="keystore_pass", help="Keystore password", required=False) # Will be asked in CLI if not given
-    signing_args.add_argument("-ka", "--key-alias", dest="key_alias", help="Key alias", required=False) # Will be asked in CLI if not given
-    signing_args.add_argument("-kap", "--key-pass", dest="key_pass", help="Key password", required=False) # Will be asked in CLI if not given
+    signing_args.add_argument("-ksp", "--keystore-pass", dest="keystore_pass", help="Keystore password", required=False)
+    signing_args.add_argument("-ka", "--key-alias", dest="key_alias", help="Key alias", required=False)
+    signing_args.add_argument("-kap", "--key-pass", dest="key_pass", help="Key password", required=False)
     signing_args.add_argument("-sc", "--scheme", dest="signing_schemes", nargs="+", choices=ANDROID_SIGNING_SCHEMES, metavar="SCHEMES", help="Signing scheme(s) to use", required=False)
 
     dylib_args = parser.add_argument_group("Dylib")
@@ -184,5 +188,13 @@ if __name__ == "__main__":
     other_args.add_argument("-nc", "--do-not-clean", dest="do_not_clean", action="store_true", help="Do not clean temporary directories (for debugging purposes...)", required=False)
 
     args = parser.parse_args()
+
+    # If we are missing required information for keystore authentication we get it directly from the user
+    if not args.keystore_pass or not args.key_alias or not args.key_pass:
+        print(" ")
+        args.keystore_pass = getpass.getpass("Keystore password: ") if not args.keystore_pass else args.keystore_pass
+        args.key_alias = input("Key alias: ") if not args.key_alias else args.key_alias
+        args.key_pass = getpass.getpass("Key password: ") if not args.key_pass else args.key_pass
+        print(" ")
 
     droidgrity(args)

@@ -1,7 +1,6 @@
 import logging
 import traceback
 import subprocess
-import getpass
 import shutil
 
 from constants import ANDROID_SIGNING_SCHEMES
@@ -38,11 +37,8 @@ class ApkSigner:
 
         try:
             if not keystore_password or not key_alias or not key_password:
-                print(" ")
-                keystore_password = getpass.getpass("Keystore password: ") if not keystore_password else keystore_password
-                key_alias = input("Key alias: ") if not key_alias else key_alias
-                key_password = getpass.getpass("Key password: ") if not key_password else key_password
-                print(" ")
+                self.logger.error(f"Missing keystore authentication...")
+                return None
             
             self.logger.info("Running apksigner...")
             signed_apk = aligned_apk.replace(".apk", "_signed.apk")
